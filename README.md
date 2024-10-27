@@ -1,6 +1,6 @@
 # AWS Fargate Terraform Playbook
 
-This repository contains a Terraform playbook designed to provision a production-grade AWS Fargate infrastructure. It includes all the recommended services and resources required for a scalable, secure, and efficient cloud environment.
+This repository contains a Terraform playbook designed to provision a production-grade AWS Fargate infrastructure and other resources. It includes all the recommended services and resources required for a scalable, secure, and efficient cloud environment.
 
 ## Set Up a Python Virtual Environment
 
