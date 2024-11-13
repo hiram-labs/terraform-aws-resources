@@ -67,3 +67,8 @@ module "ec2" {
   public_subnet_id     = module.vpc.random_public_subnet
   security_groups      = [module.sg.whitelist_sg_id, module.sg.ssh_sg_id]
 }
+
+module "s3" {
+  source               = "./modules/s3"
+  project_name         = var.project_name
+}
