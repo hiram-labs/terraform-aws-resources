@@ -59,19 +59,6 @@ variable "db_sg_attr" {
   }
 }
 
-variable "access_policies" {
-  type = map(map(string))
-  description = "A map of access policies, where each policy includes its path."
-  default = {
-    policy_01 = {
-      path = "modules/ec2/access-policies/policy_01.json"
-    }
-    policy_02 = {
-      path = "modules/ec2/access-policies/policy_02.json"
-    }
-  }
-}
-
 variable "public_task_definitions" {
   type = map(map(string))
   description = "A map of public task definitions, where each service includes its path, entry container name, and entry container port."

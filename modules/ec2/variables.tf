@@ -13,11 +13,6 @@ variable "project_name" {
   description = "Name of the project"
 }
 
-variable "access_policies" {
-  type = map(map(string))
-  description = "A map of access policies, where each policy includes its path."
-}
-
 variable "ssh_public_key" {
   type        = string
   description = "A string / file path to a public key for EC2 ssh authentication."

@@ -63,7 +63,6 @@ module "ecs" {
 module "ec2" {
   source               = "./modules/ec2"
   project_name         = var.project_name
-  access_policies      = var.access_policies
   ssh_public_key       = var.ssh_public_key
   public_subnet_id     = module.vpc.random_public_subnet
   security_groups      = [module.sg.whitelist_sg_id, module.sg.ssh_sg_id]

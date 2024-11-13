@@ -1,6 +1,41 @@
 ###############
 # access policy
 ###############
+data "aws_iam_policy_document" "ecr_policy" {
+  statement {
+    actions   = [
+      "ecr:GetAuthorizationToken",
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:BatchGetImage",
+      "ecr:DescribeRepositories",
+      "ecr:ListImages",
+      "ecr:DescribeImages",
+      "ecr:CreateRepository",
+      "ecr:DeleteRepository",
+      "ecr:PutImage",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:DeleteRepositoryPolicy",
+      "ecr:SetRepositoryPolicy"
+    ]
+    resources = ["*"]
+    effect    = "Allow"
+  }
+}
+data "aws_iam_policy_document" "s3_policy" {
+  statement {
+    actions   = [
+      "s3:ListBucket",
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject"
+    ]
+    resources = ["*"]
+    effect    = "Allow"
+  }
+}
 resource "aws_iam_role" "main_ec2_role" {
   name               = "${var.project_name}-EC2-access-role"
   assume_role_policy = jsonencode({
@@ -17,15 +52,21 @@ resource "aws_iam_role" "main_ec2_role" {
   })
 }
 resource "aws_iam_policy" "extend_access_policy" {
-  for_each    = var.access_policies
-  name        = each.key
-  description = "Policy to allow EC2 instances access to required resources"
-  policy      = file(each.value["path"])
+  for_each = {
+    ecr_policy = data.aws_iam_policy_document.ecr_policy.json
+    s3_policy  = data.aws_iam_policy_document.s3_policy.json
+  }
+  name         = each.key
+  description  = "Policy to allow EC2 instances access to required resources"
+  policy       = each.value
 }
 resource "aws_iam_role_policy_attachment" "extend_access_policy_attachment" {
-  for_each    = var.access_policies
+  for_each     = {
+    ecr_policy = aws_iam_policy.extend_access_policy["ecr_policy"].arn
+    s3_policy  = aws_iam_policy.extend_access_policy["s3_policy"].arn
+  }
   role        = aws_iam_role.main_ec2_role.name
-  policy_arn  = aws_iam_policy.extend_access_policy[each.key].arn
+  policy_arn  = each.value
 }
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "${var.project_name}-ec2-instance-profile"
