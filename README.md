@@ -8,7 +8,7 @@ This repository contains a Terraform playbook designed to provision a production
    git clone https://github.com/your-username/your-repo.git
    cd your-repo
    python3 -m venv .venv
-   source venv/bin/activate
+   source .venv/bin/activate
 ```
 
 ## Install Terraform

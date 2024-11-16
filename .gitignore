@@ -204,3 +204,4 @@ cython_debug/
 
 
 .local/*
+.DS_Store
