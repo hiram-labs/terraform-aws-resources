@@ -19,6 +19,14 @@ module "r53" {
   domain_name  = var.domain_name
 }
 
+module "ses" {
+  source            = "./modules/ses"
+  project_name      = var.project_name
+  domain_name       = var.domain_name
+  aws_region        = var.aws_region
+  route53_zone_id   = module.r53.route53_zone_id
+}
+
 module "vpc" {
   source       = "./modules/vpc"
   project_name = var.project_name
@@ -61,14 +69,14 @@ module "ecs" {
 }
 
 module "ec2" {
-  source               = "./modules/ec2"
-  project_name         = var.project_name
-  ssh_public_key       = var.ssh_public_key
-  public_subnet_id     = module.vpc.random_public_subnet
-  security_groups      = [module.sg.whitelist_sg_id, module.sg.ssh_sg_id]
+  source           = "./modules/ec2"
+  project_name     = var.project_name
+  ssh_public_key   = var.ssh_public_key
+  public_subnet_id = module.vpc.random_public_subnet
+  security_groups  = [module.sg.whitelist_sg_id, module.sg.ssh_sg_id]
 }
 
 module "s3" {
-  source               = "./modules/s3"
-  project_name         = var.project_name
+  source       = "./modules/s3"
+  project_name = var.project_name
 }
