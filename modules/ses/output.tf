@@ -3,5 +3,5 @@ output "smtp_username" {
 }
 
 output "smtp_password" {
-  value     = aws_iam_access_key.ses_access_key.secret
+  value = data.external.execute_python.result.smtp_password
 }

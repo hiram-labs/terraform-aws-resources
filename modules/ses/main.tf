@@ -127,26 +127,44 @@ resource "null_resource" "activate_rule_set" {
 #####
 # iam
 #####
-# data "aws_iam_policy_document" "ses_user_policy" {
-#   statement {
-#     actions   = ["ses:SendRawEmail"]
-#     resources = ["*"]
-#     effect    = "Allow"
-#   }
-# }
-# resource "aws_iam_user" "ses_user" {
-#   name = "${var.project_name}-ses-smtp-user"
-#   force_destroy = true
-# }
-# resource "aws_iam_access_key" "ses_access_key" {
-#   user = aws_iam_user.ses_user.name
-# }
-# resource "aws_iam_policy" "ses_user_policy" {
-#   name        = "${var.project_name}-SES-access-policy"
-#   description = "Allows sending of e-mails via Simple Email Service"
-#   policy      = data.aws_iam_policy_document.ses_user_policy.json
-# }
-# resource "aws_iam_user_policy_attachment" "ses_policy_attachment" {
-#   user       = aws_iam_user.ses_user.name
-#   policy_arn = aws_iam_policy.ses_user_policy.arn
-# }
+data "aws_iam_policy_document" "ses_user_policy" {
+  statement {
+    actions   = ["ses:SendRawEmail"]
+    resources = ["*"]
+    effect    = "Allow"
+  }
+}
+resource "aws_iam_user" "ses_user" {
+  name = "ses-smtp-user"
+  force_destroy = true
+}
+resource "aws_iam_group" "ses_group" {
+  name = "AWSSESSendingGroupDoNotRename"
+}
+resource "aws_iam_policy" "ses_user_policy" {
+  name        = "AmazonSesSendingAccess"
+  description = "Allows sending of e-mails via Simple Email Service"
+  policy      = data.aws_iam_policy_document.ses_user_policy.json
+}
+resource "aws_iam_user_group_membership" "group_membership" {
+  user = aws_iam_user.ses_user.name
+
+  groups = [
+    aws_iam_group.ses_group.name
+  ]
+}
+resource "aws_iam_group_policy_attachment" "group_policy_attachment" {
+  group      = aws_iam_group.ses_group.name
+  policy_arn = aws_iam_policy.ses_user_policy.arn
+}
+resource "aws_iam_access_key" "ses_access_key" {
+  user = aws_iam_user.ses_user.name
+}
+
+##########
+# smtp key
+##########
+# https://docs.aws.amazon.com/ses/latest/dg/smtp-credentials.html
+data "external" "execute_python" {
+  program = ["python", "scripts/ses-key-gen.py", aws_iam_access_key.ses_access_key.secret, var.aws_region]
+}
