@@ -166,5 +166,5 @@ resource "aws_iam_access_key" "ses_access_key" {
 ##########
 # https://docs.aws.amazon.com/ses/latest/dg/smtp-credentials.html
 data "external" "execute_python" {
-  program = ["python", "scripts/ses-key-gen.py", aws_iam_access_key.ses_access_key.secret, var.aws_region]
+  program = ["python", "scripts/ses-access-key-gen.py", aws_iam_access_key.ses_access_key.secret, var.aws_region]
 }
