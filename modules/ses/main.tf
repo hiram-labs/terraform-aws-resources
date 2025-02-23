@@ -1,20 +1,34 @@
-######
-# ses
-######
+#######################################################################
+# Simple Email Service (SES) Domain Configuration                     #
+#                                                                     #
+# Configures AWS SES to use our domain for sending emails. This       #
+# includes domain identity verification, enabling DKIM (to prevent    #
+# email spoofing), and setting up a custom "Mail From" domain for     #
+# handling bounced emails properly.                                   #
+#######################################################################
 resource "aws_ses_domain_identity" "domain_identity" {
   domain = var.domain_name
 }
+
 resource "aws_ses_domain_dkim" "ses_dkim" {
   domain = aws_ses_domain_identity.domain_identity.domain
 }
+
 resource "aws_ses_domain_mail_from" "domain_mail_from" {
   domain           = aws_ses_domain_identity.domain_identity.domain
   mail_from_domain = "bounce.${aws_ses_domain_identity.domain_identity.domain}"
 }
 
-#############
-# r53 records
-#############
+#######################################################################
+# Route 53 Records for Email                                          #
+#                                                                     #
+# Creates essential DNS records required for email functionality:     #
+# - MX Record: Routes emails for specific addresses through SES.      #
+# - SPF Record: Prevents spoofing by specifying allowed senders.      #
+# - DMARC Record: Defines email handling policy for failed auth.      #
+# - DKIM Records: Adds cryptographic signatures for email integrity.  #
+# - SES Verification Record: Verifies domain ownership with AWS.      #
+#######################################################################
 # used to receive email sent to [email]@webmaster.domain-name-dot-com
 resource "aws_route53_record" "inbound_mx_record" {
   zone_id = var.route53_zone_id
@@ -23,6 +37,7 @@ resource "aws_route53_record" "inbound_mx_record" {
   ttl     = "300"
   records = ["10 inbound-smtp.${var.aws_region}.amazonaws.com"]
 }
+
 resource "aws_route53_record" "mail_from_mx_record" {
   zone_id = var.route53_zone_id
   name    = aws_ses_domain_mail_from.domain_mail_from.mail_from_domain
@@ -30,6 +45,7 @@ resource "aws_route53_record" "mail_from_mx_record" {
   ttl     = "300"
   records = ["10 feedback-smtp.${var.aws_region}.amazonses.com"]
 }
+
 resource "aws_route53_record" "mail_from_txt_record" {
   zone_id = var.route53_zone_id
   name    = aws_ses_domain_mail_from.domain_mail_from.mail_from_domain
@@ -37,6 +53,7 @@ resource "aws_route53_record" "mail_from_txt_record" {
   ttl     = "300"
   records = ["v=spf1 include:amazonses.com ~all"]
 }
+
 resource "aws_route53_record" "dmarc_txt_record" {
   zone_id = var.route53_zone_id
   name    = "_dmarc.${var.domain_name}"
@@ -44,6 +61,7 @@ resource "aws_route53_record" "dmarc_txt_record" {
   ttl     = "300"
   records = ["v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@${aws_route53_record.inbound_mx_record.name};"]
 }
+
 resource "aws_route53_record" "dkim_cname_record" {
   count   = 3
   zone_id = var.route53_zone_id
@@ -52,6 +70,7 @@ resource "aws_route53_record" "dkim_cname_record" {
   ttl     = "300"
   records = ["${aws_ses_domain_dkim.ses_dkim.dkim_tokens[count.index]}.dkim.amazonses.com"]
 }
+
 resource "aws_route53_record" "ses_verification_record" {
   zone_id = var.route53_zone_id
   name    = "_amazonses.${var.domain_name}"
@@ -60,17 +79,26 @@ resource "aws_route53_record" "ses_verification_record" {
   records = [aws_ses_domain_identity.domain_identity.verification_token]
 }
 
-##############
-# verification
-##############
+#######################################################################
+# SES Domain Verification                                             #
+#                                                                     #
+# Ensures AWS SES completes domain verification before proceeding.    #
+# This step is dependent on the TXT record that proves domain         #
+# ownership. Without this, SES cannot send emails on our behalf.      #
+#######################################################################
 resource "aws_ses_domain_identity_verification" "ses_verification" {
   depends_on = [aws_route53_record.ses_verification_record]
   domain     = aws_ses_domain_identity.domain_identity.id
 }
 
-##########
-# s3 inbox
-##########
+#######################################################################
+# S3 Storage for Email Archiving                                      #
+#                                                                     #
+# Configures an S3 bucket to store incoming emails sent to the        #
+# webmaster email address. This enables email archiving and further   #
+# processing (e.g., forwarding, analytics). A bucket policy is set    #
+# to allow SES to write emails directly into this bucket.             #
+#######################################################################
 resource "aws_s3_bucket" "webmaster_emails_bucket" {
   bucket = "${var.project_name}-webmaster-email-bucket"
   force_destroy = true
@@ -79,6 +107,7 @@ resource "aws_s3_bucket" "webmaster_emails_bucket" {
     Name = "${var.project_name}-webmaster-email-bucket"
   }
 }
+
 resource "aws_s3_bucket_policy" "webmaster_emails_policy" {
   bucket = aws_s3_bucket.webmaster_emails_bucket.id
 
@@ -97,12 +126,17 @@ resource "aws_s3_bucket_policy" "webmaster_emails_policy" {
   })
 }
 
-##############
-# receipt_rule
-##############
+#######################################################################
+# SES Email Receipt Rule                                              #
+#                                                                     #
+# Defines rules for processing incoming emails. This rule directs     #
+# emails to the S3 bucket configured earlier. Additional rules can    #
+# be added later (e.g., forwarding, SNS notifications, Lambda).       #
+#######################################################################
 resource "aws_ses_receipt_rule_set" "default" {
   rule_set_name = "${var.project_name}-default-rule-set"
 }
+
 resource "aws_ses_receipt_rule" "store" {
   name          = "store"
   rule_set_name = aws_ses_receipt_rule_set.default.rule_set_name
@@ -115,6 +149,13 @@ resource "aws_ses_receipt_rule" "store" {
     position    = 1
   }
 }
+
+#######################################################################
+# Activate SES Receipt Rule Set                                       #
+#                                                                     #
+# Ensures that the newly created SES rule set is activated. This is   #
+# required because SES does not automatically enable rule sets.       #
+#######################################################################
 resource "null_resource" "activate_rule_set" {
   depends_on = [aws_ses_receipt_rule.store]
 
@@ -124,9 +165,13 @@ resource "null_resource" "activate_rule_set" {
   }
 }
 
-#####
-# iam
-#####
+#######################################################################
+# IAM Configuration for SES Sending                                   #
+#                                                                     #
+# Creates an IAM user and group with permissions to send emails via   #
+# AWS SES. This is required for programmatic email sending, such as   #
+# through SMTP authentication or AWS SDKs.                            #
+#######################################################################
 data "aws_iam_policy_document" "ses_user_policy" {
   statement {
     actions   = ["ses:SendRawEmail"]
@@ -134,18 +179,22 @@ data "aws_iam_policy_document" "ses_user_policy" {
     effect    = "Allow"
   }
 }
+
 resource "aws_iam_user" "ses_user" {
   name = "ses-smtp-user"
   force_destroy = true
 }
+
 resource "aws_iam_group" "ses_group" {
   name = "AWSSESSendingGroupDoNotRename"
 }
+
 resource "aws_iam_policy" "ses_user_policy" {
   name        = "AmazonSesSendingAccess"
   description = "Allows sending of e-mails via Simple Email Service"
   policy      = data.aws_iam_policy_document.ses_user_policy.json
 }
+
 resource "aws_iam_user_group_membership" "group_membership" {
   user = aws_iam_user.ses_user.name
 
@@ -153,17 +202,23 @@ resource "aws_iam_user_group_membership" "group_membership" {
     aws_iam_group.ses_group.name
   ]
 }
+
 resource "aws_iam_group_policy_attachment" "group_policy_attachment" {
   group      = aws_iam_group.ses_group.name
   policy_arn = aws_iam_policy.ses_user_policy.arn
 }
+
 resource "aws_iam_access_key" "ses_access_key" {
   user = aws_iam_user.ses_user.name
 }
 
-##########
-# smtp key
-##########
+#######################################################################
+# SMTP Credentials Generation                                         #
+#                                                                     #
+# AWS SES requires SMTP credentials for sending emails via SMTP.      #
+# This external data source runs a Python script to generate the      #
+# required credentials using the IAM access key.                      #
+#######################################################################
 # https://docs.aws.amazon.com/ses/latest/dg/smtp-credentials.html
 data "external" "execute_python" {
   program = ["python", "scripts/ses-access-key-gen.py", aws_iam_access_key.ses_access_key.secret, var.aws_region]

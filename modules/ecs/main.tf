@@ -1,14 +1,21 @@
-##################
-# cloud watch logs
-##################
+##################################################################################################
+# CloudWatch Logs Configuration                                                                  #
+#                                                                                                #
+# This section defines the CloudWatch Log Group for ECS services, which will capture logs        #
+# for monitoring and troubleshooting ECS tasks. The retention period for logs is set to 3 days.  #
+##################################################################################################
 resource "aws_cloudwatch_log_group" "ecs_services" {
   name              = "/aws/ecs/${var.project_name}/services"
   retention_in_days = 3
 }
 
-###############
-# access policy
-###############
+##################################################################################################
+# IAM Role and Policy for ECS Task Execution                                                     #
+#                                                                                                #
+# The IAM Role grants ECS tasks permissions to interact with AWS services, such as pulling       #
+# container images from Amazon ECR or logging to CloudWatch. The policy attachment ensures the   #
+# required execution role policies are applied to this role.                                     #
+##################################################################################################
 resource "aws_iam_role" "main_ecs_role" {
   name               = "${var.project_name}-ECS-access-role"
   assume_role_policy = jsonencode({
@@ -29,9 +36,13 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy_attachment"
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-#####
-# ECS
-#####
+##################################################################################################
+# ECS Cluster and Capacity Providers Configuration                                               #
+#                                                                                                #
+# This section creates the ECS Cluster where tasks will run, enabling container insights for     #
+# monitoring. It also configures the cluster with Fargate as the capacity provider, ensuring     #
+# that tasks will run on serverless compute resources.                                           #
+##################################################################################################
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-main"
 
@@ -50,12 +61,31 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
     capacity_provider = "FARGATE"
   }
 }
+
+##################################################################################################
+# Service Discovery Configuration for ECS Services                                               #
+#                                                                                                #
+# This section sets up the private DNS namespace for ECS services, enabling service discovery    #
+# for communication between services in the same VPC. It also configures DNS records for each    #
+# ECS service, both for public and private task definitions.                                     #
+#                                                                                                #
+# http://backend.${var.project_name}.local:<port>                                                #
+##################################################################################################
 resource "aws_service_discovery_private_dns_namespace" "main" {
   name        = "${var.project_name}.local"
   description = "Private DNS for ECS services to enable coms across multi td"
   vpc         = var.vpc_id
 }
-#
+
+# ----- PUBLIC -----
+
+##################################################################################################
+# Service Discovery for Public ECS Tasks                                                         #
+#                                                                                                #
+# Enables internal DNS resolution for public ECS tasks, allowing them to be accessed via a       #
+# consistent hostname within the VPC. This is crucial for inter-service communication, reducing  #
+# dependency on external DNS resolution and ensuring reliability.                                #
+##################################################################################################
 resource "aws_service_discovery_service" "public_sd" {
   for_each = var.public_task_definitions
   name     = each.key
@@ -69,6 +99,13 @@ resource "aws_service_discovery_service" "public_sd" {
     }
   }
 }
+
+###################################################################################################
+# ECS Task Definition for Public Services                                                         #
+#                                                                                                 #
+# Defines how each public-facing service runs on AWS Fargate. This includes CPU/memory settings,  #
+# execution roles, container definitions (loaded from a template), and networking configurations. #
+###################################################################################################
 resource "aws_ecs_task_definition" "public_td" {
   for_each                 = var.public_task_definitions
   family                   = each.key
@@ -92,6 +129,15 @@ resource "aws_ecs_task_definition" "public_td" {
     operating_system_family = "LINUX"
   }
 }
+
+##################################################################################################
+# ECS Service for Public Applications                                                            #
+#                                                                                                #
+# Deploys ECS tasks as services, ensuring high availability and load balancing. Public tasks     #
+# are assigned public IPs, placed in public subnets, and exposed via the ALB. This allows the    #
+# application to receive internet traffic. It also triggers redeployment on configuration        #
+# changes.                                                                                       #
+##################################################################################################
 resource "aws_ecs_service" "public_svc" {
   for_each        = var.public_task_definitions
   name            = each.key
@@ -121,6 +167,15 @@ resource "aws_ecs_service" "public_svc" {
     ignore_changes = [desired_count]
   }
 }
+
+##################################################################################################
+# Auto Scaling for Public ECS Services                                                           #
+#                                                                                                #
+# Defines auto-scaling for public ECS services based on CPU utilization. The service scales up   #
+# when CPU usage exceeds 70% and scales down when below 30%. This ensures cost efficiency while  #
+# maintaining performance. Scaling adjustments are subject to cooldown periods to prevent rapid  #
+# fluctuations.                                                                                  #
+##################################################################################################
 resource "aws_appautoscaling_target" "public_scaling_target" {
   for_each           = var.public_task_definitions
   max_capacity       = var.autoscale_max_capacity
@@ -163,7 +218,16 @@ resource "aws_appautoscaling_policy" "public_scaling_down_policy" {
     scale_out_cooldown = 150
   }
 }
-#
+
+# ----- PRIVATE -----
+
+###################################################################################################
+# Service Discovery for Private ECS Tasks                                                         #
+#                                                                                                 #
+# Enables internal DNS resolution for private ECS services, allowing them to communicate securely #
+# within the VPC. Unlike public tasks, private tasks do not require internet access and rely o n  #
+# internal networking for inter-service communication.                                            #
+###################################################################################################
 resource "aws_service_discovery_service" "private_sd" {
   for_each = var.private_task_definitions
   name     = each.key
@@ -177,6 +241,13 @@ resource "aws_service_discovery_service" "private_sd" {
     }
   }
 }
+
+##################################################################################################
+# ECS Task Definition for Private Services                                                       #
+#                                                                                                #
+# Similar to public task definitions but designed for services that do not require internet      #
+# exposure. These tasks run in private subnets and rely on internal service discovery.           #
+##################################################################################################
 resource "aws_ecs_task_definition" "private_td" {
   for_each                 = var.private_task_definitions
   family                   = each.key
@@ -200,6 +271,14 @@ resource "aws_ecs_task_definition" "private_td" {
     operating_system_family = "LINUX"
   }
 }
+
+##################################################################################################
+# ECS Service for Private Applications                                                           #
+#                                                                                                #
+# Deploys private ECS services that run exclusively within the VPC. These tasks are assigned     #
+# private IPs, placed in private subnets, and do not receive direct internet traffic. They rely  #
+# on service discovery for internal communication.                                               #
+##################################################################################################
 resource "aws_ecs_service" "private_svc" {
   for_each        = var.private_task_definitions
   name            = each.key
@@ -223,6 +302,14 @@ resource "aws_ecs_service" "private_svc" {
     ignore_changes = [desired_count]
   }
 }
+
+##################################################################################################
+# Auto Scaling for Private ECS Services                                                          #
+#                                                                                                #
+# Similar to public service auto-scaling, but applied to private workloads. Ensures that         #
+# non-public services can dynamically adjust based on CPU load while maintaining internal        #
+# security constraints.                                                                          #
+##################################################################################################
 resource "aws_appautoscaling_target" "private_scaling_target" {
   for_each           = var.private_task_definitions
   max_capacity       = var.autoscale_max_capacity

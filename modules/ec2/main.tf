@@ -1,6 +1,11 @@
-###############
-# access policy
-###############
+###############################################################
+# IAM Access Policies                                         #
+#                                                             #
+# Defines IAM policies that grant EC2 instances permissions   #
+# to interact with AWS services like ECR and S3. These        #
+# policies ensure instances can pull container images,        #
+# manage repositories, and store/retrieve data from S3.       #
+###############################################################
 data "aws_iam_policy_document" "ecr_policy" {
   statement {
     actions   = [
@@ -36,6 +41,15 @@ data "aws_iam_policy_document" "s3_policy" {
     effect    = "Allow"
   }
 }
+
+###############################################################
+# IAM Role for EC2 Instances                                  #
+#                                                             #
+# Creates an IAM role that EC2 instances will assume.         #
+# This role allows EC2 instances to interact with AWS         #
+# services (like ECR and S3) according to the attached        #
+# policies.                                                   #
+###############################################################
 resource "aws_iam_role" "main_ec2_role" {
   name               = "${var.project_name}-EC2-access-role"
   assume_role_policy = jsonencode({
@@ -51,6 +65,14 @@ resource "aws_iam_role" "main_ec2_role" {
     ]
   })
 }
+
+###############################################################
+# IAM Policies and Attachments                                #
+#                                                             #
+# Creates IAM policies from the defined documents and         #
+# attaches them to the EC2 IAM role. This ensures EC2         #
+# instances have the necessary permissions for ECR and S3.    #
+###############################################################
 resource "aws_iam_policy" "extend_access_policy" {
   for_each = {
     ecr_policy = data.aws_iam_policy_document.ecr_policy.json
@@ -68,14 +90,26 @@ resource "aws_iam_role_policy_attachment" "extend_access_policy_attachment" {
   role        = aws_iam_role.main_ec2_role.name
   policy_arn  = each.value
 }
+
+###############################################################
+# IAM Instance Profile                                        #
+#                                                             #
+# Associates the IAM role with EC2 instances via an instance  #
+# profile, allowing them to inherit the assigned permissions. #
+###############################################################
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "${var.project_name}-ec2-instance-profile"
   role = aws_iam_role.main_ec2_role.name
 }
 
-#####
-# EC2
-#####
+###############################################################
+# EC2 Configuration                                           #
+#                                                             #
+# Launches an EC2 instance with Ubuntu 22.04, utilizing a     #
+# spot instance for cost efficiency. The instance is          #
+# associated with the IAM role, enabling access to AWS        #
+# services like ECR and S3.                                   #
+###############################################################
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["amazon"]

@@ -22,6 +22,12 @@ variable "ssh_public_key" {
   default     = "~/.ssh/shared/id_ed25519.pub"
 }
 
+variable "use_nat_gateway" {
+  type        = bool
+  description = "Conditionally create NAT Gateway for private subnets."
+  default     = true
+}
+
 variable "autoscale_max_capacity" {
   description = "The maximum number of compute units to add when fully scaled up."
   type        = number
@@ -73,12 +79,10 @@ variable "public_task_definitions" {
 
 variable "private_task_definitions" {
   type = map(map(string))
-  description = "A map of private task definitions, where each service includes its path, entry container name, and entry container port."
+  description = "A map of private task definitions, where each service includes its path."
   default = {
     private_service_01 = {
-      path                 = "modules/ecs/task-definitions/private/service_01.json"
-      entry_container_name = "nginx"
-      entry_container_port = "80"
+      path = "modules/ecs/task-definitions/private/service_01.json"
     }
   }
 }

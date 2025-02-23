@@ -28,8 +28,10 @@ module "ses" {
 }
 
 module "vpc" {
-  source       = "./modules/vpc"
-  project_name = var.project_name
+  source             = "./modules/vpc"
+  project_name       = var.project_name
+  aws_region         = var.aws_region
+  use_nat_gateway = var.use_nat_gateway
 }
 
 module "sg" {

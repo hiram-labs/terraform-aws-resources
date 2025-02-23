@@ -24,7 +24,6 @@
       "logDriver": "awslogs",
       "options": {
         "awslogs-stream-prefix": "nginx",
-        
         "awslogs-group": "${log_group}",
         "awslogs-region": "${aws_region}"
       }
