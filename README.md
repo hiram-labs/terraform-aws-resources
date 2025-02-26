@@ -24,8 +24,20 @@ This repository contains a Terraform playbook designed to provision a production
 
 ## Install and Configure AWS CLI
 
+No need to configure aws if you already have a `~/.aws` directory configured
+
 ```bash
    pip install awscli
    aws --version
    aws configure
+```
+
+## Configuring an AWS container registry
+
+```bash
+aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <aws-account-id>.dkr.ecr.<region>.amazonaws.com
+
+# tag an image and push to ecr (you have to create an ecr repo before hand)
+docker tag <local-image:version> <aws-account-id>.dkr.ecr.<region>.amazonaws.com/<ecr-repo-name>/local-image:version
+docker push <aws-account-id>.dkr.ecr.<region>.amazonaws.com/<ecr-repo-name>/local-image:version
 ```
