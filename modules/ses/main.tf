@@ -127,6 +127,21 @@ resource "aws_s3_bucket_policy" "webmaster_emails_policy" {
 }
 
 #######################################################################
+# Deactivate SES Receipt Rule Set                                     #
+#                                                                     #
+# Ensures that the active SES rule set is deactivated before deletion.#
+# This is required because AWS does not allow deletion of an active   #
+# rule set, so we must clear the active rule set first.               #
+#######################################################################
+
+resource "null_resource" "deactivate_rule_set" {
+  provisioner "local-exec" {
+    when    = destroy
+    command = "aws ses set-active-receipt-rule-set --rule-set-name ''"
+  }
+}
+
+#######################################################################
 # SES Email Receipt Rule                                              #
 #                                                                     #
 # Defines rules for processing incoming emails. This rule directs     #
@@ -157,12 +172,12 @@ resource "aws_ses_receipt_rule" "store" {
 # required because SES does not automatically enable rule sets.       #
 #######################################################################
 resource "null_resource" "activate_rule_set" {
-  depends_on = [aws_ses_receipt_rule.store]
-
   provisioner "local-exec" {
     when = create
     command = "aws ses set-active-receipt-rule-set --rule-set-name ${aws_ses_receipt_rule_set.default.rule_set_name}"
   }
+
+  depends_on = [aws_ses_receipt_rule.store]
 }
 
 #######################################################################
