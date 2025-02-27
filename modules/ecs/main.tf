@@ -200,6 +200,8 @@ resource "aws_appautoscaling_policy" "public_scaling_up_policy" {
     scale_in_cooldown  = 150
     scale_out_cooldown = 150
   }
+
+  depends_on = [aws_appautoscaling_target.public_scaling_target]
 }
 resource "aws_appautoscaling_policy" "public_scaling_down_policy" {
   for_each           = var.public_task_definitions
@@ -217,6 +219,8 @@ resource "aws_appautoscaling_policy" "public_scaling_down_policy" {
     scale_in_cooldown  = 150
     scale_out_cooldown = 150
   }
+
+  depends_on = [aws_appautoscaling_target.public_scaling_target]
 }
 
 # ----- PRIVATE -----
@@ -334,6 +338,8 @@ resource "aws_appautoscaling_policy" "private_scaling_up_policy" {
     scale_in_cooldown  = 150
     scale_out_cooldown = 60
   }
+
+  depends_on = [aws_appautoscaling_target.private_scaling_target]
 }
 resource "aws_appautoscaling_policy" "private_scaling_down_policy" {
   for_each           = var.private_task_definitions
@@ -351,4 +357,6 @@ resource "aws_appautoscaling_policy" "private_scaling_down_policy" {
     scale_in_cooldown  = 150
     scale_out_cooldown = 60
   }
+
+  depends_on = [aws_appautoscaling_target.private_scaling_target]
 }

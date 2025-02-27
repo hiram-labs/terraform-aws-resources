@@ -24,7 +24,7 @@ variable "ssh_public_key" {
 
 variable "use_nat_gateway" {
   type        = bool
-  description = "Conditionally create NAT Gateway for private subnets."
+  description = "Specify whether to create a NAT Gateway for private subnets."
   default     = true
 }
 

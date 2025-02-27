@@ -10,6 +10,14 @@ output "private_subnets" {
   value = aws_subnet.private[*].id
 }
 
+output "public_route_table_id" {
+  value = aws_route_table.public.id
+}
+
+output "private_route_table_id" {
+  value = aws_route_table.private.id
+}
+
 output "random_public_subnet" {
   value = random_shuffle.public_subnet_shuffle.result[0]
 }

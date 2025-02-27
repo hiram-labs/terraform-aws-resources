@@ -95,3 +95,51 @@ resource "aws_route53_record" "www" {
     evaluate_target_health = true
   }
 }
+
+########################################################################
+# VPC Endpoint Configuration                                           #
+#                                                                      #
+# This section defines VPC Endpoints for ECR (both API and Docker) and #
+# S3, enabling private connections to these services from within the   #
+# VPC without traversing the public internet. The configuration uses   #
+# Interface endpoints for ECR and a Gateway endpoint for S3. These     #
+# endpoints enhance security and performance by keeping traffic within #
+# the AWS network.                                                     #
+########################################################################
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id             = var.vpc_id
+  service_name       = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = flatten([for subnet in var.private_subnets : subnet])
+  security_group_ids = var.security_groups
+
+  private_dns_enabled = true
+}
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id             = var.vpc_id
+  service_name       = "com.amazonaws.${var.aws_region}.ecr.dkr"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = flatten([for subnet in var.private_subnets : subnet])
+  security_group_ids = var.security_groups
+
+  private_dns_enabled = true
+}
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id             = var.vpc_id
+  service_name       = "com.amazonaws.${var.aws_region}.logs"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = flatten([for subnet in var.private_subnets : subnet])
+  security_group_ids = var.security_groups
+
+  private_dns_enabled = true
+}
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = var.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids = [var.private_route_table_id]
+
+  tags = {
+    Name = "${var.project_name}-s3gw"
+  }
+}

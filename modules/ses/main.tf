@@ -137,7 +137,7 @@ resource "aws_s3_bucket_policy" "webmaster_emails_policy" {
 resource "null_resource" "deactivate_rule_set" {
   provisioner "local-exec" {
     when    = destroy
-    command = "aws ses set-active-receipt-rule-set --rule-set-name ''"
+    command = "aws ses set-active-receipt-rule-set"
   }
 }
 
@@ -150,6 +150,12 @@ resource "null_resource" "deactivate_rule_set" {
 #######################################################################
 resource "aws_ses_receipt_rule_set" "default" {
   rule_set_name = "${var.project_name}-default-rule-set"
+
+  lifecycle {
+    prevent_destroy = false
+  }
+
+  depends_on = [null_resource.deactivate_rule_set]
 }
 
 resource "aws_ses_receipt_rule" "store" {

@@ -31,7 +31,7 @@ module "vpc" {
   source             = "./modules/vpc"
   project_name       = var.project_name
   aws_region         = var.aws_region
-  use_nat_gateway = var.use_nat_gateway
+  use_nat_gateway    = var.use_nat_gateway
 }
 
 module "sg" {
@@ -43,14 +43,18 @@ module "sg" {
 }
 
 module "alb" {
-  source            = "./modules/alb"
-  project_name      = var.project_name
-  vpc_id            = module.vpc.vpc_id
-  public_subnets    = module.vpc.public_subnets
-  route53_zone_id   = module.r53.route53_zone_id
-  route53_zone_name = module.r53.route53_zone_name
-  certificate_arn   = module.r53.certificate_arn
-  security_groups   = [module.sg.whitelist_sg_id, module.sg.web_sg_id]
+  source                 = "./modules/alb"
+  project_name           = var.project_name
+  aws_region             = var.aws_region
+  vpc_id                 = module.vpc.vpc_id
+  public_subnets         = module.vpc.public_subnets
+  private_subnets        = module.vpc.private_subnets
+  public_route_table_id  = module.vpc.public_route_table_id
+  private_route_table_id = module.vpc.private_route_table_id
+  route53_zone_id        = module.r53.route53_zone_id
+  route53_zone_name      = module.r53.route53_zone_name
+  certificate_arn        = module.r53.certificate_arn
+  security_groups        = [module.sg.whitelist_sg_id, module.sg.web_sg_id]
 }
 
 module "ecs" {
