@@ -92,6 +92,39 @@ resource "aws_ses_domain_identity_verification" "ses_verification" {
 }
 
 #######################################################################
+# SES Configuration Set and Event Destination for CloudWatch          #
+#                                                                     #
+# This configuration sets up an SES Configuration Set to enforce      #
+# delivery options such as TLS policy. It also defines an event       #
+# destination to send SES events (e.g., send, bounce, complaint, etc.)#
+# to CloudWatch for monitoring and analysis. Events such as delivery, #
+# open, and click are captured and sent to CloudWatch for further     #
+# processing and visualization.                                       #
+#######################################################################
+# -- IMPORTANT -- 
+# add X-SES-CONFIGURATION-SET: <config-set-name> as header when sending email to use this config set
+# or there is a way to select and identity and add a default config set
+resource "aws_ses_configuration_set" "default" {
+  name = "${var.project_name}-default-config-set"
+
+  delivery_options {
+    tls_policy = "Require"
+  }
+}
+resource "aws_ses_event_destination" "cloudwatch" {
+  name                   = "${var.project_name}-event-destination-cloudwatch"
+  configuration_set_name = aws_ses_configuration_set.default.name
+  enabled                = true
+  matching_types         = ["send", "reject", "bounce", "complaint", "delivery", "open", "click", "renderingFailure"]
+
+  cloudwatch_destination {
+    default_value  = "default"
+    dimension_name = "dimension"
+    value_source   = "emailHeader"
+  }
+}
+
+#######################################################################
 # S3 Storage for Email Archiving                                      #
 #                                                                     #
 # Configures an S3 bucket to store incoming emails sent to the        #
@@ -133,7 +166,6 @@ resource "aws_s3_bucket_policy" "webmaster_emails_policy" {
 # This is required because AWS does not allow deletion of an active   #
 # rule set, so we must clear the active rule set first.               #
 #######################################################################
-
 resource "null_resource" "deactivate_rule_set" {
   provisioner "local-exec" {
     when    = destroy
@@ -142,22 +174,22 @@ resource "null_resource" "deactivate_rule_set" {
 }
 
 #######################################################################
-# SES Email Receipt Rule                                              #
+# SES Email Receipt Rules                                             #
 #                                                                     #
-# Defines rules for processing incoming emails. This rule directs     #
-# emails to the S3 bucket configured earlier. Additional rules can    #
-# be added later (e.g., forwarding, SNS notifications, Lambda).       #
+# Defines rules for processing incoming emails:                       #
+# - "store"         : Directs emails sent to webmaster@<domain> to    #
+#                    an S3 bucket for archiving.                      #
+# - "bounce-other"  : Rejects all emails not addressed to             #
+#                    webmaster@<domain>, responding with a bounce     #
+#                    message. The bounce sender dynamically uses the  #
+#                    configured MAIL FROM domain.                     #
+# Additional rules can be added later (e.g., forwarding, SNS, Lambda).#
 #######################################################################
 resource "aws_ses_receipt_rule_set" "default" {
   rule_set_name = "${var.project_name}-default-rule-set"
 
-  lifecycle {
-    prevent_destroy = false
-  }
-
   depends_on = [null_resource.deactivate_rule_set]
 }
-
 resource "aws_ses_receipt_rule" "store" {
   name          = "store"
   rule_set_name = aws_ses_receipt_rule_set.default.rule_set_name
@@ -168,6 +200,26 @@ resource "aws_ses_receipt_rule" "store" {
   s3_action {
     bucket_name = aws_s3_bucket.webmaster_emails_bucket.bucket
     position    = 1
+  }
+
+  stop_action {
+    position = 2
+    scope    = "RuleSet"
+  }
+}
+resource "aws_ses_receipt_rule" "bounce" {
+  name          = "bounce"
+  rule_set_name = aws_ses_receipt_rule_set.default.rule_set_name
+  recipients    = []
+  enabled       = true
+  scan_enabled  = true
+
+  bounce_action {
+    sender          = "no-reply@${aws_ses_domain_mail_from.domain_mail_from.mail_from_domain}"
+    smtp_reply_code = "550"
+    status_code     = "5.1.1"
+    message         = "This email address is not monitored."
+    position        = 1
   }
 }
 
