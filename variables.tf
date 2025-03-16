@@ -34,18 +34,6 @@ variable "autoscale_max_capacity" {
   default     = 5
 }
 
-variable "ecs_task_cpu" {
-  description = "The amount of CPU for the ECS task definition (in vCPUs)."
-  type        = number
-  default     = 256
-}
-
-variable "ecs_task_memory" {
-  description = "The amount of memory (in MiB) for the ECS task definition."
-  type        = number
-  default     = 512
-}
-
 variable "web_sg_attr" {
   type = map(string)
   description = "Security group attributes for the web service, including HTTP and HTTPS ports."
@@ -66,23 +54,37 @@ variable "db_sg_attr" {
 }
 
 variable "public_task_definitions" {
-  type = map(map(string))
-  description = "A map of public task definitions, where each service includes its path, entry container name, and entry container port."
+  type = map(object({
+    path                 = string
+    cpu                  = number
+    memory               = number
+    entry_container_name = string
+    entry_container_port = number
+  }))
+  description = "A map of public task definitions, where each key represents a service, and the value includes the task definition parameters such as path, CPU, memory, entry container name, and entry container port."
   default = {
     public_service_01 = {
       path                 = "modules/ecs/task-definitions/public/service_01.json"
+      cpu                  = 256
+      memory               = 512
       entry_container_name = "nginx"
-      entry_container_port = "80"
+      entry_container_port = 80
     }
   }
 }
 
 variable "private_task_definitions" {
-  type = map(map(string))
-  description = "A map of private task definitions, where each service includes its path."
+  type = map(object({
+    path   = string
+    cpu    = number
+    memory = number
+  }))
+  description = "A map of private task definitions, where each key represents a service, and the value includes the task definition parameters such as path, CPU, and memory."
   default = {
     private_service_01 = {
-      path = "modules/ecs/task-definitions/private/service_01.json"
+      path   = "modules/ecs/task-definitions/private/service_01.json"
+      cpu    = 256
+      memory = 512
     }
   }
 }

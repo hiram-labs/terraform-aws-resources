@@ -4,8 +4,6 @@ aws_region = "eu-west-2"
 ssh_public_key = "~/.ssh/shared/id_ed25519.pub"
 use_nat_gateway = false
 autoscale_max_capacity = 5
-ecs_task_cpu = 256
-ecs_task_memory = 512
 web_sg_attr = {
   http  = 80
   https = 443
@@ -18,6 +16,8 @@ db_sg_attr = {
 public_task_definitions = {
   public_service_01 = {
     path                 = "modules/ecs/task-definitions/public/service_01.json"
+    cpu                  = 256
+    memory               = 512
     entry_container_name = "nginx"
     entry_container_port = 80
   }
@@ -25,5 +25,7 @@ public_task_definitions = {
 private_task_definitions = {
   private_service_01 = {
     path = "modules/ecs/task-definitions/private/service_01.json"
+    cpu                  = 256
+    memory               = 512
   }
 }

@@ -62,8 +62,6 @@ module "ecs" {
   project_name               = var.project_name
   aws_region                 = var.aws_region
   autoscale_max_capacity     = var.autoscale_max_capacity
-  ecs_task_cpu               = var.ecs_task_cpu
-  ecs_task_memory            = var.ecs_task_memory
   public_task_definitions    = var.public_task_definitions
   private_task_definitions   = var.private_task_definitions
   vpc_id                     = module.vpc.vpc_id

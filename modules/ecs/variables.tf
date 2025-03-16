@@ -35,7 +35,7 @@ variable "project_name" {
 
 variable "aws_region" {
   type        = string
-  description = "The AWS region to deploy resources in."
+  description = "The AWS region to deploy resources in"
 }
 
 variable "autoscale_max_capacity" {
@@ -43,22 +43,22 @@ variable "autoscale_max_capacity" {
   type        = number
 }
 
-variable "ecs_task_cpu" {
-  description = "The amount of CPU for the ECS task definition"
-  type        = number
-}
-
-variable "ecs_task_memory" {
-  description = "The amount of memory (in MiB) for the ECS task definition"
-  type        = number
-}
-
 variable "public_task_definitions" {
-  type = map(map(string))
-  description = "A map of public task definitions, where each service includes its path, entry container name, and entry container port."
+  type = map(object({
+    path                 = string
+    cpu                  = number
+    memory               = number
+    entry_container_name = string
+    entry_container_port = number
+  }))
+  description = "A map of public task definitions along with required attributes"
 }
 
 variable "private_task_definitions" {
-  type = map(map(string))
-  description = "A map of private task definitions, where each service includes its path, entry container name, and entry container port."
+  type = map(object({
+    path   = string
+    cpu    = number
+    memory = number
+  }))
+  description = "A map of private task definitions along with required attributes"
 }

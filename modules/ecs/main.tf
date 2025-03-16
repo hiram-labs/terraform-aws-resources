@@ -111,8 +111,8 @@ resource "aws_ecs_task_definition" "public_td" {
   family                   = each.key
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = var.ecs_task_cpu
-  memory                   = var.ecs_task_memory
+  cpu                      = each.value["cpu"]
+  memory                   = each.value["memory"]
   execution_role_arn       = aws_iam_role.main_ecs_role.arn
   
   container_definitions    = templatefile(
@@ -257,8 +257,8 @@ resource "aws_ecs_task_definition" "private_td" {
   family                   = each.key
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = var.ecs_task_cpu
-  memory                   = var.ecs_task_memory
+  cpu                      = each.value["cpu"]
+  memory                   = each.value["memory"]
   execution_role_arn       = aws_iam_role.main_ecs_role.arn
   
   container_definitions    = templatefile(
