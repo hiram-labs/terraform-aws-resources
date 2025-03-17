@@ -43,6 +43,10 @@ resource "aws_route53_record" "primary" {
 resource "aws_acm_certificate" "cert" {
   domain_name       = aws_route53_zone.primary.name
   validation_method = "DNS"
+
+  subject_alternative_names = [
+    "*.${aws_route53_zone.primary.name}"
+  ]
 }
 
 #######################################################################
