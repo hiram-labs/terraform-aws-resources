@@ -151,6 +151,10 @@ resource "aws_ecs_service" "public_svc" {
     redeployment = plantimestamp()
   }
 
+  service_registries {
+    registry_arn = aws_service_discovery_service.public_sd[each.key].arn
+  }
+
   network_configuration {
     subnets          = var.public_subnets
     security_groups  = var.public_td_security_groups
@@ -297,6 +301,10 @@ resource "aws_ecs_service" "private_svc" {
 
   triggers = {
     redeployment = plantimestamp()
+  }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.private_sd[each.key].arn
   }
 
   network_configuration {
