@@ -50,6 +50,7 @@ variable "public_task_definitions" {
     memory               = number
     entry_container_name = string
     entry_container_port = number
+    is_entry_container   = bool
   }))
   description = "A map of public task definitions along with required attributes"
 }

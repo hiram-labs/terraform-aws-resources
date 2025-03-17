@@ -157,10 +157,13 @@ resource "aws_ecs_service" "public_svc" {
     assign_public_ip = true
   }
 
-  load_balancer {
-    target_group_arn = var.web_ip_tg_arn
-    container_name   = each.value["entry_container_name"]
-    container_port   = each.value["entry_container_port"]
+  dynamic "load_balancer" {
+    for_each = try(each.value["is_entry_container"], false) ? [1] : []
+    content {
+      target_group_arn = var.web_ip_tg_arn
+      container_name   = each.value["entry_container_name"]
+      container_port   = each.value["entry_container_port"]
+    }
   }
 
   lifecycle {

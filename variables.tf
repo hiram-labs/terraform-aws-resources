@@ -60,8 +60,9 @@ variable "public_task_definitions" {
     memory               = number
     entry_container_name = string
     entry_container_port = number
+    is_entry_container   = bool
   }))
-  description = "A map of public task definitions, where each key represents a service, and the value includes the task definition parameters such as path, CPU, memory, entry container name, and entry container port."
+  description = "A map of public task definitions, where each key represents a service, and the value includes the task definition parameters such as path, CPU, memory, entry container name, entry container port and is entry container flag."
   default = {
     public_service_01 = {
       path                 = "modules/ecs/task-definitions/public/service_01.json"
@@ -69,6 +70,7 @@ variable "public_task_definitions" {
       memory               = 512
       entry_container_name = "nginx"
       entry_container_port = 80
+      is_entry_container   = true
     }
   }
 }

@@ -20,6 +20,7 @@ public_task_definitions = {
     memory               = 512
     entry_container_name = "nginx"
     entry_container_port = 80
+    is_entry_container   = true
   }
 }
 private_task_definitions = {
