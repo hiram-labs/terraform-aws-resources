@@ -31,15 +31,6 @@ resource "aws_lb_target_group" "web_ip_tg" {
   target_type = "ip"
   protocol    = "HTTP"
   port        = 80
-
-  health_check {
-    path                = "/health"
-    interval            = 30
-    timeout             = 10
-    healthy_threshold   = 5
-    unhealthy_threshold = 3
-    matcher             = "200-399"
-  }
 }
 
 #######################################################################
