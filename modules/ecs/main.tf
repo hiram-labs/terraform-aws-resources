@@ -117,12 +117,17 @@ resource "aws_ecs_task_definition" "public_td" {
   
   container_definitions    = templatefile(
     each.value["path"], {
-      aws_region = var.aws_region
-      log_group  = aws_cloudwatch_log_group.ecs_services.name
+      aws_region  = var.aws_region
+      log_group   = aws_cloudwatch_log_group.ecs_services.name
+      volume_name = "${var.project_name}-${each.key}-volume"
     }
   )
 
   depends_on               = [aws_cloudwatch_log_group.ecs_services]
+
+  volume {
+    name                   = "${var.project_name}-${each.key}-volume"
+  }
 
   runtime_platform {
     cpu_architecture        = "X86_64"
@@ -270,12 +275,17 @@ resource "aws_ecs_task_definition" "private_td" {
   
   container_definitions    = templatefile(
     each.value["path"], {
-      aws_region = var.aws_region
-      log_group  = aws_cloudwatch_log_group.ecs_services.name
+      aws_region  = var.aws_region
+      log_group   = aws_cloudwatch_log_group.ecs_services.name
+      volume_name = "${var.project_name}-${each.key}-volume"
     }
   )
 
   depends_on               = [aws_cloudwatch_log_group.ecs_services]
+
+  volume {
+    name                   = "${var.project_name}-${each.key}-volume"
+  }
 
   runtime_platform {
     cpu_architecture        = "X86_64"
