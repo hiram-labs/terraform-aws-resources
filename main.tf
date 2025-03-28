@@ -73,3 +73,11 @@ module "s3" {
   source       = "./modules/s3"
   project_name = var.project_name
 }
+
+
+module "db" {
+  source          = "./modules/db"
+  project_name    = var.project_name
+  private_subnets = module.vpc.private_subnets
+  security_groups = [module.sg.whitelist_sg_id, module.sg.whitelist_db_sg_id]
+}
