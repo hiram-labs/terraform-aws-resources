@@ -18,7 +18,7 @@ resource "aws_route53_zone" "primary" {
 # at the domain registrar to delegate DNS resolution to Route 53.     #
 #######################################################################
 resource "aws_route53_record" "primary" {
-  allow_overwrite = true
+  allow_overwrite = false
   zone_id         = aws_route53_zone.primary.zone_id
   name            = aws_route53_zone.primary.name
   ttl             = 1800
@@ -58,6 +58,7 @@ resource "aws_acm_certificate" "cert" {
 # The short TTL (60s) ensures that updates propagate quickly.         #
 #######################################################################
 resource "aws_route53_record" "cert_validation" {
+  allow_overwrite = true
   for_each = {
     for dvo in aws_acm_certificate.cert.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
