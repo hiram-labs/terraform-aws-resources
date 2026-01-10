@@ -6,7 +6,14 @@
 ##################################################################################################
 resource "aws_cloudwatch_log_group" "ecs_services" {
   name              = "/aws/ecs/${var.project_name}/services"
-  retention_in_days = 3
+  retention_in_days = var.log_retention_days
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ecs-services-logs"
+    }
+  )
 }
 
 ##################################################################################################
@@ -30,6 +37,13 @@ resource "aws_iam_role" "main_ecs_role" {
       }
     ]
   })
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ECS-access-role"
+    }
+  )
 }
 resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy_attachment" {
   role       = aws_iam_role.main_ecs_role.name
@@ -50,6 +64,13 @@ resource "aws_ecs_cluster" "main" {
     name  = "containerInsights"
     value = "enabled"
   }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-main"
+    }
+  )
 }
 resource "aws_ecs_cluster_capacity_providers" "main" {
   cluster_name = aws_ecs_cluster.main.name
@@ -75,6 +96,13 @@ resource "aws_service_discovery_private_dns_namespace" "main" {
   name        = "${var.project_name}.local"
   description = "Private DNS for ECS services to enable coms across multi td"
   vpc         = var.vpc_id
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}.local"
+    }
+  )
 }
 
 # ----- PUBLIC -----
@@ -133,6 +161,13 @@ resource "aws_ecs_task_definition" "public_td" {
     cpu_architecture        = "X86_64"
     operating_system_family = "LINUX"
   }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = each.key
+    }
+  )
 }
 
 ##################################################################################################
@@ -178,6 +213,13 @@ resource "aws_ecs_service" "public_svc" {
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = each.key
+    }
+  )
 }
 
 ##################################################################################################
@@ -291,6 +333,13 @@ resource "aws_ecs_task_definition" "private_td" {
     cpu_architecture        = "X86_64"
     operating_system_family = "LINUX"
   }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = each.key
+    }
+  )
 }
 
 ##################################################################################################
@@ -326,6 +375,13 @@ resource "aws_ecs_service" "private_svc" {
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = each.key
+    }
+  )
 }
 
 ##################################################################################################
@@ -380,4 +436,141 @@ resource "aws_appautoscaling_policy" "private_scaling_down_policy" {
   }
 
   depends_on = [aws_appautoscaling_target.private_scaling_target]
+}
+
+
+#######################################################################
+# CloudWatch Alarms for ECS Public Services                           #
+#######################################################################
+resource "aws_cloudwatch_metric_alarm" "ecs_public_unhealthy_tasks" {
+  for_each            = var.sns_topic_arn != "" ? var.public_task_definitions : {}
+  alarm_name          = "${var.project_name}-ecs-${each.key}-unhealthy-tasks"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "TaskCount"
+  namespace           = "ECS/ContainerInsights"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 0
+  alarm_description   = "ECS service ${each.key} has unhealthy tasks"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ServiceName = each.key
+    ClusterName = aws_ecs_cluster.main.name
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ecs-${each.key}-unhealthy-tasks"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_public_cpu_high" {
+  for_each            = var.sns_topic_arn != "" ? var.public_task_definitions : {}
+  alarm_name          = "${var.project_name}-ecs-${each.key}-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "ECS service ${each.key} CPU utilization is above 80%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ServiceName = each.key
+    ClusterName = aws_ecs_cluster.main.name
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ecs-${each.key}-cpu-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_public_memory_high" {
+  for_each            = var.sns_topic_arn != "" ? var.public_task_definitions : {}
+  alarm_name          = "${var.project_name}-ecs-${each.key}-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "MemoryUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "ECS service ${each.key} memory utilization is above 80%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ServiceName = each.key
+    ClusterName = aws_ecs_cluster.main.name
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ecs-${each.key}-memory-high"
+    }
+  )
+}
+
+#######################################################################
+# CloudWatch Alarms for ECS Private Services                          #
+#######################################################################
+resource "aws_cloudwatch_metric_alarm" "ecs_private_cpu_high" {
+  for_each            = var.sns_topic_arn != "" ? var.private_task_definitions : {}
+  alarm_name          = "${var.project_name}-ecs-${each.key}-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "ECS service ${each.key} CPU utilization is above 80%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ServiceName = each.key
+    ClusterName = aws_ecs_cluster.main.name
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ecs-${each.key}-cpu-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_private_memory_high" {
+  for_each            = var.sns_topic_arn != "" ? var.private_task_definitions : {}
+  alarm_name          = "${var.project_name}-ecs-${each.key}-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "MemoryUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "ECS service ${each.key} memory utilization is above 80%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ServiceName = each.key
+    ClusterName = aws_ecs_cluster.main.name
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ecs-${each.key}-memory-high"
+    }
+  )
 }
