@@ -67,7 +67,7 @@ variable "aws_region" {
 variable "ssh_public_key" {
   type        = string
   description = "A string / file path to a public key for EC2 ssh authentication."
-  default     = "~/.ssh/shared/id_ed25519.pub"
+  default     = "~/.ssh/id_ed25519.pub"
 }
 
 variable "use_nat_gateway" {
