@@ -9,14 +9,93 @@
 # various AWS resources.                                              #
 #######################################################################
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.vpc_cidr
   instance_tenancy     = "default"
   enable_dns_support   = true
   enable_dns_hostnames = true
 
-  tags = {
-    Name = "${var.project_name}-main-vpc"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-main-vpc"
+    }
+  )
+}
+
+#######################################################################
+# VPC Flow Logs Configuration                                         #
+#                                                                     #
+# Captures information about IP traffic going to and from network     #
+# interfaces in the VPC. Useful for security monitoring, network      #
+# troubleshooting, and compliance requirements.                       #
+#######################################################################
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/${var.project_name}-flow-logs"
+  retention_in_days = var.log_retention_days
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-vpc-flow-logs"
+    }
+  )
+}
+
+resource "aws_iam_role" "vpc_flow_logs_role" {
+  name = "${var.project_name}-vpc-flow-logs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = var.common_tags
+}
+
+resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
+  name = "${var.project_name}-vpc-flow-logs-policy"
+  role = aws_iam_role.vpc_flow_logs_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_flow_log" "main" {
+  vpc_id                   = aws_vpc.main.id
+  traffic_type             = "ALL"
+  iam_role_arn             = aws_iam_role.vpc_flow_logs_role.arn
+  log_destination_type     = "cloud-watch-logs"
+  log_destination          = aws_cloudwatch_log_group.vpc_flow_logs.arn
+  max_aggregation_interval = 60
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-vpc-flow-log"
+    }
+  )
 }
 
 #######################################################################
@@ -41,12 +120,15 @@ data "aws_availability_zones" "available" {
 resource "aws_subnet" "public" {
   count = 3
   vpc_id     = aws_vpc.main.id
-  cidr_block = cidrsubnet("10.0.0.0/16", 8, count.index + 1)
+  cidr_block = cidrsubnet(var.vpc_cidr, 8, count.index + 1)
   availability_zone = element(data.aws_availability_zones.available.names, count.index)
 
-  tags = {
-    Name = "${var.project_name}-public-subnet-${count.index}"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-public-subnet-${count.index}"
+    }
+  )
 }
 
 #########################################################################
@@ -60,12 +142,15 @@ resource "aws_subnet" "public" {
 resource "aws_subnet" "private" {
   count = 3
   vpc_id     = aws_vpc.main.id
-  cidr_block = cidrsubnet("10.0.0.0/16", 8, count.index + 4)
+  cidr_block = cidrsubnet(var.vpc_cidr, 8, count.index + 4)
   availability_zone = element(data.aws_availability_zones.available.names, count.index)
 
-  tags = {
-    Name = "${var.project_name}-private-subnet-${count.index}"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-private-subnet-${count.index}"
+    }
+  )
 }
 
 ########################################################################
@@ -114,9 +199,12 @@ resource "aws_eip" "nat_eip" {
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 
-  tags = {
-    Name = "${var.project_name}-igw"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-igw"
+    }
+  )
 }
 
 ##########################################################################
@@ -132,9 +220,12 @@ resource "aws_nat_gateway" "ngw" {
   allocation_id = aws_eip.nat_eip[0].id
   subnet_id     = random_shuffle.public_subnet_shuffle.result[0]
 
-  tags = {
-    Name = "${var.project_name}-ngw"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-ngw"
+    }
+  )
   depends_on = [aws_internet_gateway.igw]
 }
 
@@ -153,9 +244,12 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = {
-    Name = "${var.project_name}-public-rt"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-public-rt"
+    }
+  )
 }
 
 #######################################################################
@@ -176,9 +270,12 @@ resource "aws_route_table" "private" {
     }
   }
 
-  tags = {
-    Name = "${var.project_name}-private-rt"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-private-rt"
+    }
+  )
 }
 
 #######################################################################
@@ -203,4 +300,34 @@ resource "aws_route_table_association" "private_association" {
   count = 3
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
+}
+
+
+#######################################################################
+# CloudWatch Alarm for VPC Flow Logs                                  #
+#######################################################################
+resource "aws_cloudwatch_metric_alarm" "vpc_flow_logs_delivery_errors" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-vpc-flow-logs-delivery-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "IncomingLogEvents"
+  namespace           = "AWS/Logs"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "breaching"
+  alarm_description   = "VPC Flow Logs delivery has failed"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    LogGroupName = aws_cloudwatch_log_group.vpc_flow_logs.name
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-vpc-flow-logs-delivery-errors"
+    }
+  )
 }
