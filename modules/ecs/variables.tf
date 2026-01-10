@@ -23,6 +23,12 @@ variable "private_td_security_groups" {
   description = "Security groups for the private ECS task definitions"
 }
 
+variable "common_tags" {
+  type        = map(string)
+  description = "Common tags to apply to all resources"
+  default     = {}
+}
+
 variable "web_ip_tg_arn" {
   type        = string
   description = "LB web ports target group"
@@ -62,4 +68,15 @@ variable "private_task_definitions" {
     memory = number
   }))
   description = "A map of private task definitions along with required attributes"
+}
+variable "log_retention_days" {
+  type        = number
+  description = "CloudWatch log retention in days"
+  default     = 3
+}
+
+variable "sns_topic_arn" {
+  type        = string
+  description = "SNS topic ARN for CloudWatch alarms"
+  default     = ""
 }

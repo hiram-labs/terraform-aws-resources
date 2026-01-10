@@ -17,3 +17,9 @@ variable "ssh_public_key" {
   type        = string
   description = "A string / file path to a public key for EC2 ssh authentication."
 }
+
+variable "common_tags" {
+  type        = map(string)
+  description = "Common tags to apply to all resources"
+  default     = {}
+}

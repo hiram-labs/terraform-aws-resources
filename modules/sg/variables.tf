@@ -17,3 +17,9 @@ variable "web_sg_attr" {
   type        = map(number)
   description = "Map of Web security group attributes where key is the name and value is the port"
 }
+
+variable "common_tags" {
+  type        = map(string)
+  description = "Common tags to apply to all resources"
+  default     = {}
+}
