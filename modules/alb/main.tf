@@ -273,7 +273,7 @@ resource "aws_vpc_endpoint" "s3" {
 # CloudWatch Alarms for Application Load Balancer                     #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-alb-5xx-errors-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -286,7 +286,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    LoadBalancer = aws_lb.web_alb.arn_suffix
+    LoadBalancer = aws_lb.alb.arn_suffix
   }
 
   tags = merge(
@@ -298,7 +298,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-alb-target-response-time-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -311,7 +311,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    LoadBalancer = aws_lb.web_alb.arn_suffix
+    LoadBalancer = aws_lb.alb.arn_suffix
   }
 
   tags = merge(
@@ -323,7 +323,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-alb-unhealthy-targets"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -336,7 +336,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    LoadBalancer = aws_lb.web_alb.arn_suffix
+    LoadBalancer = aws_lb.alb.arn_suffix
     TargetGroup  = aws_lb_target_group.web_ip_tg.arn_suffix
   }
 
@@ -349,7 +349,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "alb_request_count_anomaly" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-alb-request-count-anomaly"
   comparison_operator = "GreaterThanUpperThreshold"
   evaluation_periods  = 2
@@ -374,7 +374,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_request_count_anomaly" {
       stat        = "Sum"
 
       dimensions = {
-        LoadBalancer = aws_lb.web_alb.arn_suffix
+        LoadBalancer = aws_lb.alb.arn_suffix
       }
     }
   }

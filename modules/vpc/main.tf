@@ -307,7 +307,7 @@ resource "aws_route_table_association" "private_association" {
 # CloudWatch Alarm for VPC Flow Logs                                  #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "vpc_flow_logs_delivery_errors" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-vpc-flow-logs-delivery-errors"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1

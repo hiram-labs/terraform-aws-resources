@@ -155,6 +155,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "website_bucket_lifecycle" {
     id     = "expire-old-versions"
     status = "Enabled"
 
+    filter {
+      prefix = ""
+    }
+
     noncurrent_version_transition {
       noncurrent_days = 30
       storage_class   = "STANDARD_IA"
@@ -173,6 +177,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "website_bucket_lifecycle" {
   rule {
     id     = "abort-incomplete-multipart-uploads"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7

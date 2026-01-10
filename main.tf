@@ -26,6 +26,7 @@ module "vpc" {
   use_nat_gateway    = var.use_nat_gateway
   log_retention_days = var.log_retention_days[var.environment]
   sns_topic_arn      = module.sns.sns_topic_arn
+  enable_monitoring  = local.enable_monitoring
   common_tags        = local.common_tags
 }
 
@@ -53,6 +54,7 @@ module "alb" {
   certificate_arn        = module.r53.certificate_arn
   sns_topic_arn          = module.sns.sns_topic_arn
   security_groups        = [module.sg.whitelist_sg_id, module.sg.web_sg_id]
+  enable_monitoring      = local.enable_monitoring
   common_tags            = local.common_tags
 }
 
@@ -71,6 +73,7 @@ module "ecs" {
   sns_topic_arn              = module.sns.sns_topic_arn
   public_td_security_groups  = [module.sg.whitelist_sg_id, module.sg.whitelist_web_sg_id]
   private_td_security_groups = [module.sg.whitelist_sg_id, module.sg.whitelist_all_access_sg_id]
+  enable_monitoring          = local.enable_monitoring
   common_tags                = local.common_tags
 }
 
@@ -91,12 +94,13 @@ module "s3" {
 
 
 module "db" {
-  source          = "./modules/db"
-  project_name    = var.project_name
-  private_subnets = module.vpc.private_subnets
-  sns_topic_arn   = module.sns.sns_topic_arn
-  security_groups = [module.sg.whitelist_sg_id, module.sg.whitelist_db_sg_id]
-  common_tags     = local.common_tags
+  source            = "./modules/db"
+  project_name      = var.project_name
+  private_subnets   = module.vpc.private_subnets
+  sns_topic_arn     = module.sns.sns_topic_arn
+  security_groups   = [module.sg.whitelist_sg_id, module.sg.whitelist_db_sg_id]
+  enable_monitoring = local.enable_monitoring
+  common_tags       = local.common_tags
 }
 
 module "sns" {

@@ -306,7 +306,7 @@ resource "aws_docdb_cluster_instance" "docdb_cluster_instance" {
 # CloudWatch Alarms for RDS PostgreSQL                                #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-rds-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -331,7 +331,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-rds-storage-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 1
@@ -356,7 +356,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-rds-connections-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -381,7 +381,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_read_latency_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-rds-read-latency-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -406,7 +406,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_read_latency_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_write_latency_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-rds-write-latency-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -434,7 +434,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_write_latency_high" {
 # CloudWatch Alarms for ElastiCache                                   #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-elasticache-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -459,7 +459,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-elasticache-memory-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -484,7 +484,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "elasticache_evictions_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-elasticache-evictions-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -512,7 +512,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_evictions_high" {
 # CloudWatch Alarms for DocumentDB                                    #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "docdb_cpu_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-docdb-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -537,7 +537,7 @@ resource "aws_cloudwatch_metric_alarm" "docdb_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "docdb_connections_high" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-docdb-connections-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -562,7 +562,7 @@ resource "aws_cloudwatch_metric_alarm" "docdb_connections_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "docdb_replication_lag" {
-  count               = var.sns_topic_arn != "" ? 1 : 0
+  count               = var.enable_monitoring ? 1 : 0
   alarm_name          = "${var.project_name}-docdb-replication-lag"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2

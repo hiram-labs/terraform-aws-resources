@@ -70,3 +70,9 @@ variable "sns_topic_arn" {
   description = "SNS topic ARN for CloudWatch alarms"
   default     = ""
 }
+
+variable "enable_monitoring" {
+  type        = bool
+  description = "Enable CloudWatch monitoring and alarms"
+  default     = false
+}

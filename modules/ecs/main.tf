@@ -443,7 +443,7 @@ resource "aws_appautoscaling_policy" "private_scaling_down_policy" {
 # CloudWatch Alarms for ECS Public Services                           #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "ecs_public_unhealthy_tasks" {
-  for_each            = var.sns_topic_arn != "" ? var.public_task_definitions : {}
+  for_each            = var.enable_monitoring ? var.public_task_definitions : {}
   alarm_name          = "${var.project_name}-ecs-${each.key}-unhealthy-tasks"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -469,7 +469,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_public_unhealthy_tasks" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_public_cpu_high" {
-  for_each            = var.sns_topic_arn != "" ? var.public_task_definitions : {}
+  for_each            = var.enable_monitoring ? var.public_task_definitions : {}
   alarm_name          = "${var.project_name}-ecs-${each.key}-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -495,7 +495,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_public_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_public_memory_high" {
-  for_each            = var.sns_topic_arn != "" ? var.public_task_definitions : {}
+  for_each            = var.enable_monitoring ? var.public_task_definitions : {}
   alarm_name          = "${var.project_name}-ecs-${each.key}-memory-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -524,7 +524,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_public_memory_high" {
 # CloudWatch Alarms for ECS Private Services                          #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "ecs_private_cpu_high" {
-  for_each            = var.sns_topic_arn != "" ? var.private_task_definitions : {}
+  for_each            = var.enable_monitoring ? var.private_task_definitions : {}
   alarm_name          = "${var.project_name}-ecs-${each.key}-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -550,7 +550,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_private_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_private_memory_high" {
-  for_each            = var.sns_topic_arn != "" ? var.private_task_definitions : {}
+  for_each            = var.enable_monitoring ? var.private_task_definitions : {}
   alarm_name          = "${var.project_name}-ecs-${each.key}-memory-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2

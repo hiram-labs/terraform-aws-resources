@@ -18,4 +18,7 @@ locals {
 
   # Compute name prefix for resources
   name_prefix = "${var.project_name}-${var.environment}"
+
+  # Enable monitoring based on alert_email being provided
+  enable_monitoring = var.alert_email != ""
 }
