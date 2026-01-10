@@ -166,3 +166,435 @@ provider "aws" {
 ## Conclusion
 
 This playbook provides a streamlined approach to deploying AWS Fargate infrastructure using Terraform. Ensure best practices by managing credentials securely and version-controlling your Terraform configurations.
+
+---
+
+## Production Deployment Guide
+
+### Pre-Deployment Checklist
+
+Before deploying to production, ensure you have:
+
+- [ ] **Domain Name**: Registered and ready for DNS configuration
+- [ ] **SSL Certificate**: Will be automatically created via ACM with DNS validation
+- [ ] **AWS Account**: Production account with appropriate IAM permissions
+- [ ] **Backend State**: S3 bucket and DynamoDB table created for state management
+- [ ] **Alert Email**: Valid email address for CloudWatch alarm notifications
+- [ ] **SSH Keys**: Generated SSH key pair for EC2 access
+- [ ] **Docker Images**: Container images pushed to ECR
+- [ ] **Review Variables**: All variables in `terraform.tfvars` configured appropriately
+- [ ] **Cost Review**: Reviewed infrastructure costs (databases, NAT Gateway, etc.)
+- [ ] **Backup Plan**: Understood RDS/DocumentDB snapshot policies
+
+### Environment-Specific Configurations
+
+#### Development Environment
+```hcl
+environment         = "dev"
+use_nat_gateway     = false  # Cost savings - use public subnets
+use_alb_waf         = false  # Cost savings - disable WAF
+alert_email         = ""     # Optional monitoring
+log_retention_days  = { dev = 3 }
+```
+
+**Estimated Cost**: ~$50-100/month
+
+#### Staging Environment
+```hcl
+environment         = "staging"
+use_nat_gateway     = true   # Test production networking
+use_alb_waf         = false  # Optional
+alert_email         = "team@example.com"
+log_retention_days  = { staging = 7 }
+```
+
+**Estimated Cost**: ~$150-250/month
+
+#### Production Environment
+```hcl
+environment         = "prod"
+use_nat_gateway     = true   # Required for security
+use_alb_waf         = true   # Recommended for security
+alert_email         = "oncall@example.com"
+log_retention_days  = { prod = 30 }
+```
+
+**Estimated Cost**: ~$300-500/month (varies by traffic)
+
+### Deployment Steps
+
+1. **Initialize Terraform with Remote State**
+```bash
+# Set environment variables
+export PROJECT_NAME="myapp"
+export ENVIRONMENT="prod"
+export AWS_REGION="us-east-1"
+
+# Initialize with backend
+terraform init \
+  -backend-config="bucket=${PROJECT_NAME}-${ENVIRONMENT}-terraform-state" \
+  -backend-config="dynamodb_table=${PROJECT_NAME}-${ENVIRONMENT}-terraform-lock" \
+  -backend-config="region=${AWS_REGION}" \
+  -migrate-state
+```
+
+2. **Review and Validate Configuration**
+```bash
+terraform validate
+terraform fmt -check
+terraform plan -out=tfplan
+```
+
+3. **Apply Infrastructure**
+```bash
+terraform apply tfplan
+```
+
+4. **Verify Deployment**
+```bash
+# Check outputs
+terraform output
+
+# Verify critical resources
+terraform state list | grep -E "(vpc|alb|ecs_cluster|rds)"
+```
+
+5. **Configure DNS**
+```bash
+# Get name servers from output
+terraform output route53_name_servers
+
+# Update your domain registrar with these name servers
+```
+
+6. **Confirm SNS Subscription**
+   - Check the email specified in `alert_email`
+   - Click the confirmation link sent by AWS SNS
+   - Verify you receive test notifications
+
+### Post-Deployment Steps
+
+1. **Verify SSL Certificate**
+   - Certificate should auto-validate via DNS
+   - Check ACM console for validation status
+   - May take 5-30 minutes
+
+2. **Test Application Access**
+   ```bash
+   ALB_DNS=$(terraform output -raw alb_dns_name)
+   curl -I https://${ALB_DNS}
+   ```
+
+3. **Configure Application**
+   ```bash
+   # Get database connection strings
+   terraform output -raw rds_connection_string
+   terraform output -raw elasticache_endpoint
+   terraform output -raw documentdb_endpoint
+   
+   # Get database password
+   terraform output -raw database_password
+   ```
+
+4. **Deploy Application to ECS**
+   - Push Docker images to ECR
+   - Update task definitions in `modules/ecs/task-definitions/`
+   - Force new deployment:
+   ```bash
+   aws ecs update-service --cluster $(terraform output -raw ecs_cluster_name) \
+     --service public_service_01 --force-new-deployment
+   ```
+
+5. **Monitor Initial Traffic**
+   - Check CloudWatch dashboard
+   - Verify alarms are configured
+   - Review logs in CloudWatch Logs
+
+### Monitoring and Alerting
+
+#### CloudWatch Alarms Configured
+
+**VPC Monitoring** (1 alarm):
+- VPC Flow Logs delivery errors
+
+**ALB Monitoring** (4 alarms):
+- 5xx errors > 10 in 5 minutes
+- Target response time > 1 second
+- Unhealthy targets detected
+- Request count anomaly (ML-based)
+
+**Database Monitoring** (11 alarms):
+- RDS: CPU, storage, connections, read/write latency (5 alarms)
+- ElastiCache: CPU, memory, evictions (3 alarms)
+- DocumentDB: CPU, connections, replication lag (3 alarms)
+
+**ECS Monitoring** (5 alarms per service):
+- Unhealthy tasks
+- CPU utilization > 80%
+- Memory utilization > 80%
+
+#### Viewing Metrics
+
+```bash
+# List all alarms
+aws cloudwatch describe-alarms --query 'MetricAlarms[*].[AlarmName,StateValue]' --output table
+
+# View specific alarm history
+aws cloudwatch describe-alarm-history --alarm-name myapp-prod-rds-cpu-high --max-records 10
+```
+
+#### CloudWatch Logs
+
+```bash
+# ECS service logs
+aws logs tail /aws/ecs/${PROJECT_NAME}/services --follow
+
+# VPC Flow Logs
+aws logs tail /aws/vpc/${PROJECT_NAME}-flow-logs --follow
+```
+
+### Backup and Disaster Recovery
+
+#### Automated Backups
+
+**RDS PostgreSQL**:
+- Automated daily backups (retention: 7 days)
+- Backup window: 03:00-04:00 UTC
+- Manual snapshots: taken before major changes
+- Final snapshot: created automatically on deletion
+
+**DocumentDB**:
+- Automated daily backups (retention: 7 days)
+- Backup window: 02:00-03:00 UTC
+- Point-in-time recovery enabled
+
+**ElastiCache**:
+- Daily snapshots (retention: 1 day)
+- Snapshot window: 00:00-02:00 UTC
+
+#### Manual Backup Procedures
+
+```bash
+# Create RDS snapshot
+aws rds create-db-snapshot \
+  --db-instance-identifier $(terraform output -raw rds_instance_id) \
+  --db-snapshot-identifier ${PROJECT_NAME}-manual-$(date +%Y%m%d-%H%M%S)
+
+# Create DocumentDB snapshot
+aws docdb create-db-cluster-snapshot \
+  --db-cluster-identifier $(terraform output -raw docdb_cluster_id) \
+  --db-cluster-snapshot-identifier ${PROJECT_NAME}-docdb-$(date +%Y%m%d-%H%M%S)
+
+# Create ElastiCache snapshot
+aws elasticache create-snapshot \
+  --replication-group-id $(terraform output -raw cache_cluster_id) \
+  --snapshot-name ${PROJECT_NAME}-cache-$(date +%Y%m%d-%H%M%S)
+```
+
+#### Disaster Recovery
+
+**RTO (Recovery Time Objective)**: 1-2 hours
+**RPO (Recovery Point Objective)**: 5 minutes (point-in-time recovery)
+
+**Recovery Steps**:
+1. Restore from latest automated backup
+2. Update DNS if needed
+3. Verify data integrity
+4. Resume normal operations
+
+### Cost Optimization
+
+#### Current Infrastructure Costs (Estimated)
+
+**Always-On Resources**:
+- VPC & Networking: ~$0-5/month (free tier eligible)
+- NAT Gateway: ~$32/month (if enabled)
+- ALB: ~$16/month + $0.008/LCU-hour
+- RDS db.t3.medium: ~$60/month
+- ElastiCache cache.t3.medium: ~$30/month
+- DocumentDB db.t3.medium: ~$90/month
+- ECS Fargate: $0.04/vCPU-hour + $0.004/GB-hour
+- CloudWatch Logs: ~$0.50/GB ingested + $0.03/GB stored
+- Route53 Hosted Zone: ~$0.50/month
+- ACM Certificate: Free
+
+**Optional Resources**:
+- WAF: ~$5-10/month + $0.60/million requests
+- EC2 t2.micro (spot): ~$3-5/month
+
+**Total Estimated**: $200-400/month (varies by traffic and usage)
+
+#### Cost Optimization Tips
+
+1. **Development Environments**
+   - Disable NAT Gateway (`use_nat_gateway = false`)
+   - Disable WAF (`use_alb_waf = false`)
+   - Use smaller instance types
+   - Reduce log retention to 3 days
+
+2. **Staging/Production**
+   - Use Reserved Instances for RDS (40-60% savings)
+   - Enable S3 lifecycle policies (already configured)
+   - Review and right-size ECS task CPU/memory
+   - Use Fargate Spot for non-critical workloads
+
+3. **Monitoring**
+   - Set up AWS Budgets with alerts
+   - Review Cost Explorer monthly
+   - Tag all resources for cost allocation
+
+```bash
+# Enable AWS Budgets alert
+aws budgets create-budget \
+  --account-id $(aws sts get-caller-identity --query Account --output text) \
+  --budget file://budget.json \
+  --notifications-with-subscribers file://notifications.json
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+**1. ACM Certificate Not Validating**
+```bash
+# Check certificate status
+aws acm describe-certificate --certificate-arn $(terraform output -raw acm_certificate_arn)
+
+# Verify DNS records
+dig _validation.yourdomain.com TXT
+
+# Solution: Ensure name servers are updated at domain registrar
+terraform output route53_name_servers
+```
+
+**2. ECS Tasks Not Starting**
+```bash
+# Check service events
+aws ecs describe-services --cluster $(terraform output -raw ecs_cluster_name) \
+  --services public_service_01 --query 'services[0].events[0:5]'
+
+# Common causes:
+# - Image not found in ECR
+# - Insufficient CPU/memory
+# - Task execution role missing permissions
+```
+
+**3. Database Connection Failures**
+```bash
+# Verify security groups allow traffic
+aws ec2 describe-security-groups --group-ids $(terraform output -raw db_security_group_id)
+
+# Test from EC2 instance
+psql "$(terraform output -raw rds_connection_string)"
+```
+
+**4. High AWS Costs**
+```bash
+# Identify top cost drivers
+aws ce get-cost-and-usage \
+  --time-period Start=2024-01-01,End=2024-01-31 \
+  --granularity MONTHLY \
+  --metrics BlendedCost \
+  --group-by Type=SERVICE
+
+# Common culprits:
+# - NAT Gateway data transfer
+# - RDS instance hours
+# - CloudWatch Logs storage
+```
+
+**5. SNS Alarms Not Received**
+```bash
+# Check subscription status
+aws sns list-subscriptions-by-topic \
+  --topic-arn $(terraform output -raw sns_topic_arn)
+
+# Status should be "Confirmed", not "PendingConfirmation"
+# Check spam folder for confirmation email
+```
+
+### Security Best Practices
+
+1. **Credentials Management**
+   - Never commit `terraform.tfvars` to git
+   - Use AWS Secrets Manager for sensitive data
+   - Rotate database passwords regularly
+
+2. **Network Security**
+   - Keep resources in private subnets
+   - Use security groups with least privilege
+   - Enable VPC Flow Logs (already configured)
+
+3. **Monitoring**
+   - Enable CloudTrail for audit logging
+   - Set up GuardDuty for threat detection
+   - Review CloudWatch alarms regularly
+
+4. **Compliance**
+   - Enable AWS Config for compliance monitoring
+   - Use AWS Security Hub for centralized findings
+   - Implement backup retention policies
+
+### Maintenance
+
+#### Regular Tasks
+
+**Daily**:
+- Monitor CloudWatch alarms
+- Review application logs
+- Check for unusual traffic patterns
+
+**Weekly**:
+- Review cost reports
+- Check for available updates
+- Verify backup success
+
+**Monthly**:
+- Update base Docker images
+- Review and update dependencies
+- Conduct security patching
+- Review CloudWatch metrics for optimization
+
+**Quarterly**:
+- Review disaster recovery plan
+- Conduct failover testing
+- Security audit
+- Cost optimization review
+
+#### Updating Infrastructure
+
+```bash
+# Always work in a branch
+git checkout -b infrastructure-update
+
+# Make changes to Terraform files
+# Run plan to preview changes
+terraform plan -out=tfplan
+
+# Review plan carefully
+less tfplan
+
+# Apply if safe
+terraform apply tfplan
+
+# Tag the release
+git tag -a v1.2.0 -m "Update: ..."
+git push origin v1.2.0
+```
+
+### Support and Contributing
+
+For issues, questions, or contributions:
+1. Check existing issues
+2. Create detailed bug reports
+3. Submit pull requests with tests
+4. Follow conventional commit messages
+
+---
+
+## Additional Resources
+
+- [Terraform AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+- [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
+- [ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/intro.html)
+- [RDS Best Practices](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_BestPractices.html)
