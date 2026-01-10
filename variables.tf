@@ -2,6 +2,11 @@ variable "project_name" {
   type        = string
   description = "The name of the project."
   default     = "playground"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.project_name)) && length(var.project_name) >= 3 && length(var.project_name) <= 32
+    error_message = "Project name must be lowercase alphanumeric with hyphens, between 3 and 32 characters."
+  }
 }
 
 variable "environment" {
@@ -36,12 +41,27 @@ variable "domain_name" {
   type        = string
   description = "The domain name for the application services."
   default     = ""
+
+  validation {
+    condition     = var.domain_name == "" || can(regex("^([a-z0-9]+(-[a-z0-9]+)*\\.)+[a-z]{2,}$", var.domain_name))
+    error_message = "Domain name must be a valid domain (e.g., example.com) or empty string."
+  }
 }
 
 variable "aws_region" {
   type        = string
   description = "The AWS region to deploy resources in."
   default     = "eu-west-2"
+
+  validation {
+    condition = contains([
+      "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+      "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-north-1",
+      "ap-south-1", "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2",
+      "ca-central-1", "sa-east-1"
+    ], var.aws_region)
+    error_message = "AWS region must be a valid AWS region identifier."
+  }
 }
 
 variable "ssh_public_key" {
@@ -66,6 +86,11 @@ variable "autoscale_max_capacity" {
   description = "The maximum number of compute units to add when fully scaled up."
   type        = number
   default     = 5
+
+  validation {
+    condition     = var.autoscale_max_capacity >= 1 && var.autoscale_max_capacity <= 100
+    error_message = "Autoscale max capacity must be between 1 and 100."
+  }
 }
 
 variable "web_sg_attr" {
@@ -129,6 +154,11 @@ variable "alert_email" {
   type        = string
   description = "Email address to receive CloudWatch alarm notifications."
   default     = ""
+
+  validation {
+    condition     = var.alert_email == "" || can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.alert_email))
+    error_message = "Alert email must be a valid email address or empty string."
+  }
 }
 
 variable "log_retention_days" {
