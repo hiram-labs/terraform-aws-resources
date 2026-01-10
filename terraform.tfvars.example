@@ -1,8 +1,18 @@
 project_name = "playground"
+environment = "dev"
+owner = "DevOps"
+vpc_cidr = "10.0.0.0/16"
 domain_name = "cloud.hiramlabs.com"
 aws_region = "eu-west-2"
 ssh_public_key = "~/.ssh/shared/id_ed25519.pub"
 use_nat_gateway = false
+use_alb_waf = false
+alert_email = ""
+log_retention_days = {
+  dev     = 3
+  staging = 7
+  prod    = 30
+}
 autoscale_max_capacity = 5
 web_sg_attr = {
   http  = 80

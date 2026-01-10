@@ -4,6 +4,34 @@ variable "project_name" {
   default     = "playground"
 }
 
+variable "environment" {
+  type        = string
+  description = "The deployment environment (e.g., dev, staging, prod)."
+  default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be one of: dev, staging, prod."
+  }
+}
+
+variable "owner" {
+  type        = string
+  description = "The owner or team responsible for the infrastructure."
+  default     = "DevOps"
+}
+
+variable "vpc_cidr" {
+  type        = string
+  description = "The CIDR block for the VPC."
+  default     = "10.0.0.0/16"
+
+  validation {
+    condition     = can(cidrhost(var.vpc_cidr, 0))
+    error_message = "VPC CIDR must be a valid IPv4 CIDR block."
+  }
+}
+
 variable "domain_name" {
   type        = string
   description = "The domain name for the application services."
@@ -26,6 +54,12 @@ variable "use_nat_gateway" {
   type        = bool
   description = "Specify whether to create a NAT Gateway for private subnets."
   default     = true
+}
+
+variable "use_alb_waf" {
+  type        = bool
+  description = "Enable AWS WAF for Application Load Balancer."
+  default     = false
 }
 
 variable "autoscale_max_capacity" {
@@ -88,5 +122,21 @@ variable "private_task_definitions" {
       cpu    = 256
       memory = 512
     }
+  }
+}
+
+variable "alert_email" {
+  type        = string
+  description = "Email address to receive CloudWatch alarm notifications."
+  default     = ""
+}
+
+variable "log_retention_days" {
+  type        = map(number)
+  description = "CloudWatch log retention in days per environment."
+  default = {
+    dev     = 3
+    staging = 7
+    prod    = 30
   }
 }
