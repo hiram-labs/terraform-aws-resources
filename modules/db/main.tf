@@ -26,10 +26,24 @@ resource "random_password" "shared_password" {
 resource "aws_elasticache_subnet_group" "cache_subnet_group" {
   name       = "${var.project_name}-cache-subnet-group"
   subnet_ids = var.private_subnets
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-cache-subnet-group"
+    }
+  )
 }
 resource "aws_elasticache_parameter_group" "cache_params" {
   name   = "${var.project_name}-cache-params"
   family = "valkey7"
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-cache-params"
+    }
+  )
 }
 resource "aws_elasticache_user" "cache_default_user" {
   engine        = "valkey"
@@ -71,6 +85,13 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
   snapshot_retention_limit   = 1
   snapshot_window            = "00:00-02:00"
   maintenance_window         = "sun:02:00-sun:05:00"
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-cache-replication-group"
+    }
+  )
 }
 
 
@@ -96,6 +117,13 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "${var.project_name}-rds-subnet-group"
   subnet_ids = var.private_subnets
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-subnet-group"
+    }
+  )
 }
 resource "aws_db_parameter_group" "rds_pg_params" {
   name        = "${var.project_name}-rds-pg-params"
@@ -110,6 +138,13 @@ resource "aws_db_parameter_group" "rds_pg_params" {
     name  = "rds.force_ssl"
     value = "1"
   }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-pg-params"
+    }
+  )
 }
 resource "aws_db_option_group" "rds_pg_options" {
   name                 = "${var.project_name}-rds-pg-options"
@@ -120,6 +155,13 @@ resource "aws_db_option_group" "rds_pg_options" {
   # so this resource is mostly for documentation and consistency
 
   # option {}
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-pg-options"
+    }
+  )
 }
 resource "aws_db_instance" "rds_postgres" {
   identifier                            = "${var.project_name}-rds-postgres"
@@ -153,6 +195,13 @@ resource "aws_db_instance" "rds_postgres" {
   apply_immediately                     = true
   skip_final_snapshot                   = false
   final_snapshot_identifier             = "${var.project_name}-final-snapshot-${formatdate("YYYY-MM-DD-HH-mm-ss", timestamp())}"
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-postgres"
+    }
+  )
 }
 
 
@@ -180,6 +229,13 @@ resource "aws_db_instance" "rds_postgres" {
 resource "aws_docdb_subnet_group" "docdb_subnet_group" {
   name       = "${var.project_name}-docdb-subnet-group"
   subnet_ids = var.private_subnets
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-docdb-subnet-group"
+    }
+  )
 }
 resource "aws_docdb_cluster_parameter_group" "docdb_pg_params" {
   name        = "${var.project_name}-docdb-pg-params"
@@ -193,6 +249,13 @@ resource "aws_docdb_cluster_parameter_group" "docdb_pg_params" {
     name  = "tls"
     value = "enabled"
   }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-docdb-pg-params"
+    }
+  )
 }
 resource "aws_docdb_cluster" "docdb_cluster" {
   cluster_identifier              = "${var.project_name}-docdb-cluster"
@@ -217,10 +280,308 @@ resource "aws_docdb_cluster" "docdb_cluster" {
   apply_immediately               = true
   skip_final_snapshot             = false
   final_snapshot_identifier       = "${var.project_name}-final-snapshot-${formatdate("YYYY-MM-DD-HH-mm-ss", timestamp())}"
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-docdb-cluster"
+    }
+  )
 }
 resource "aws_docdb_cluster_instance" "docdb_cluster_instance" {
   count              = 1
   identifier         = "${var.project_name}-docdb-cluster-instance-${count.index}"
   cluster_identifier = aws_docdb_cluster.docdb_cluster.id
   instance_class     = "db.t3.medium"
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-docdb-cluster-instance-${count.index}"
+    }
+  )
+}
+
+#######################################################################
+# CloudWatch Alarms for RDS PostgreSQL                                #
+#######################################################################
+resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-rds-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "RDS CPU utilization is above 80%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-cpu-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-rds-storage-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "FreeStorageSpace"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 2147483648  # 2GB in bytes
+  alarm_description   = "RDS free storage space is below 2GB"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-storage-low"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-rds-connections-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "RDS database connections are high"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-connections-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_read_latency_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-rds-read-latency-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "ReadLatency"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 0.1  # 100ms
+  alarm_description   = "RDS read latency is above 100ms"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-read-latency-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_write_latency_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-rds-write-latency-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "WriteLatency"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 0.1  # 100ms
+  alarm_description   = "RDS write latency is above 100ms"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-rds-write-latency-high"
+    }
+  )
+}
+
+#######################################################################
+# CloudWatch Alarms for ElastiCache                                   #
+#######################################################################
+resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-elasticache-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ElastiCache"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 75
+  alarm_description   = "ElastiCache CPU utilization is above 75%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-elasticache-cpu-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-elasticache-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseMemoryUsagePercentage"
+  namespace           = "AWS/ElastiCache"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 90
+  alarm_description   = "ElastiCache memory usage is above 90%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-elasticache-memory-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "elasticache_evictions_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-elasticache-evictions-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "Evictions"
+  namespace           = "AWS/ElastiCache"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1000
+  alarm_description   = "ElastiCache evictions are high"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-elasticache-evictions-high"
+    }
+  )
+}
+
+#######################################################################
+# CloudWatch Alarms for DocumentDB                                    #
+#######################################################################
+resource "aws_cloudwatch_metric_alarm" "docdb_cpu_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-docdb-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/DocDB"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "DocumentDB CPU utilization is above 80%"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-docdb-cpu-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "docdb_connections_high" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-docdb-connections-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/DocDB"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 100
+  alarm_description   = "DocumentDB connections are high"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-docdb-connections-high"
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "docdb_replication_lag" {
+  count               = var.sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-docdb-replication-lag"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DBClusterReplicaLag"
+  namespace           = "AWS/DocDB"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 1000  # 1 second in ms
+  alarm_description   = "DocumentDB replication lag is above 1 second"
+  alarm_actions       = [var.sns_topic_arn]
+
+  dimensions = {
+    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster.id
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-docdb-replication-lag"
+    }
+  )
 }
