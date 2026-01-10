@@ -11,9 +11,12 @@ resource "aws_s3_bucket" "website_bucket" {
   bucket        = "${var.project_name}-website-bucket"
   force_destroy = true
 
-  tags = {
-    Name = "${var.project_name}-website-bucket"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-website-bucket"
+    }
+  )
 }
 
 ###############################################################
@@ -121,4 +124,58 @@ resource "aws_s3_bucket_website_configuration" "website_bucket_conf" {
     }
 }]
 EOF
+}
+
+###############################################################
+# S3 Bucket Versioning Configuration                          #
+#                                                             #
+# Enables versioning to protect against accidental deletion   #
+# or overwrite of objects. Every modification creates a new   #
+# version, allowing recovery of previous versions.            #
+###############################################################
+resource "aws_s3_bucket_versioning" "website_bucket_versioning" {
+  bucket = aws_s3_bucket.website_bucket.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+###############################################################
+# S3 Bucket Lifecycle Configuration                           #
+#                                                             #
+# Manages object lifecycle to reduce storage costs by         #
+# transitioning older versions to cheaper storage classes     #
+# and eventually expiring them.                               #
+###############################################################
+resource "aws_s3_bucket_lifecycle_configuration" "website_bucket_lifecycle" {
+  bucket = aws_s3_bucket.website_bucket.id
+
+  rule {
+    id     = "expire-old-versions"
+    status = "Enabled"
+
+    noncurrent_version_transition {
+      noncurrent_days = 30
+      storage_class   = "STANDARD_IA"
+    }
+
+    noncurrent_version_transition {
+      noncurrent_days = 90
+      storage_class   = "GLACIER"
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 365
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
 }
