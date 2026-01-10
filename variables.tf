@@ -35,7 +35,7 @@ variable "vpc_cidr" {
 variable "domain_name" {
   type        = string
   description = "The domain name for the application services."
-  default     = "cloud.hiramlabs.com"
+  default     = ""
 }
 
 variable "aws_region" {
