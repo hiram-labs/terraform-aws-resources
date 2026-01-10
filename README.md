@@ -64,6 +64,60 @@ docker push <aws-account-id>.dkr.ecr.<region>.amazonaws.com/<ecr-repo-name>/loca
 
 ## Managing Terraform State
 
+### Configuring Remote State Backend (Recommended for Teams)
+
+For team collaboration and state protection, enable remote state storage in S3 with DynamoDB locking:
+
+**1. Set your configuration variables:**
+```bash
+PROJECT_NAME="playground"  # From var.project_name
+ENVIRONMENT="dev"          # From var.environment
+AWS_REGION="eu-west-2"     # From var.aws_region
+```
+
+**2. Create the S3 bucket for state storage:**
+```bash
+BUCKET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-terraform-state"
+
+aws s3 mb s3://${BUCKET_NAME} --region ${AWS_REGION}
+```
+
+**3. Enable versioning on the bucket:**
+```bash
+aws s3api put-bucket-versioning \
+  --bucket ${BUCKET_NAME} \
+  --versioning-configuration Status=Enabled
+```
+
+**4. Create DynamoDB table for state locking:**
+```bash
+aws dynamodb create-table \
+  --table-name ${PROJECT_NAME}-${ENVIRONMENT}-terraform-lock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --region ${AWS_REGION}
+```
+
+**5. Enable the backend configuration:**
+
+Uncomment the backend block in `backend.tf`, then initialize with CLI flags:
+
+```bash
+terraform init \
+  -backend-config="bucket=${PROJECT_NAME}-${ENVIRONMENT}-terraform-state" \
+  -backend-config="dynamodb_table=${PROJECT_NAME}-${ENVIRONMENT}-terraform-lock" \
+  -backend-config="region=${AWS_REGION}" \
+  -migrate-state
+```
+
+**6. Verify the backend configuration:**
+```bash
+terraform init
+```
+
+> **Note:** Once enabled, all team members must use the same backend configuration. The state file will be stored remotely and locked during operations to prevent conflicts.
+
 ### Importing Existing AWS Resources into Terraform
 
 To import an existing AWS resource into Terraform state:
