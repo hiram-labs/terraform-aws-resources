@@ -136,9 +136,12 @@ resource "aws_s3_bucket" "webmaster_emails_bucket" {
   bucket = "${var.project_name}-webmaster-email-bucket"
   force_destroy = true
 
-  tags = {
-    Name = "${var.project_name}-webmaster-email-bucket"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-webmaster-email-bucket"
+    }
+  )
 }
 
 resource "aws_s3_bucket_policy" "webmaster_emails_policy" {

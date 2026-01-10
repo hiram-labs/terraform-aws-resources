@@ -64,6 +64,13 @@ resource "aws_iam_role" "main_ec2_role" {
       }
     ]
   })
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-EC2-access-role"
+    }
+  )
 }
 
 ###############################################################
@@ -81,6 +88,13 @@ resource "aws_iam_policy" "extend_access_policy" {
   name         = each.key
   description  = "Policy to allow EC2 instances access to required resources"
   policy       = each.value
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = each.key
+    }
+  )
 }
 resource "aws_iam_role_policy_attachment" "extend_access_policy_attachment" {
   for_each     = {
@@ -122,6 +136,13 @@ data "aws_ami" "ubuntu" {
 resource "aws_key_pair" "main_key" {
   key_name   = "main-key"
   public_key = fileexists(var.ssh_public_key) ? file(var.ssh_public_key) : var.ssh_public_key
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "main-key"
+    }
+  )
 }
 resource "aws_instance" "main" {
   instance_type               = "t2.micro"
@@ -136,7 +157,10 @@ resource "aws_instance" "main" {
     market_type = "spot"
   }
 
-  tags = {
-    Name = "${var.project_name}-main"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-main"
+    }
+  )
 }
