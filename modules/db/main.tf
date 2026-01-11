@@ -75,7 +75,7 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
 
   transit_encryption_enabled = true
   apply_immediately          = true
-  final_snapshot_identifier  = "${var.project_name}-final-snapshot-${formatdate("YYYY-MM-DD-HH-mm-ss", timestamp())}"
+  final_snapshot_identifier  = "${var.project_name}-final-snapshot"
   
   user_group_ids             = [aws_elasticache_user_group.cache_default_user_group.id]
   parameter_group_name       = aws_elasticache_parameter_group.cache_params.name
@@ -92,6 +92,10 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
       Name = "${var.project_name}-cache-replication-group"
     }
   )
+
+  lifecycle {
+    ignore_changes = [final_snapshot_identifier]
+  }
 }
 
 
@@ -135,8 +139,9 @@ resource "aws_db_parameter_group" "rds_pg_params" {
   }
 
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "immediate"
   }
 
   tags = merge(
@@ -194,7 +199,7 @@ resource "aws_db_instance" "rds_postgres" {
   publicly_accessible                   = false
   apply_immediately                     = true
   skip_final_snapshot                   = false
-  final_snapshot_identifier             = "${var.project_name}-final-snapshot-${formatdate("YYYY-MM-DD-HH-mm-ss", timestamp())}"
+  final_snapshot_identifier             = "${var.project_name}-rds-final-snapshot"
 
   tags = merge(
     var.common_tags,
@@ -202,6 +207,10 @@ resource "aws_db_instance" "rds_postgres" {
       Name = "${var.project_name}-rds-postgres"
     }
   )
+
+  lifecycle {
+    ignore_changes = [final_snapshot_identifier]
+  }
 }
 
 
@@ -279,7 +288,7 @@ resource "aws_docdb_cluster" "docdb_cluster" {
 
   apply_immediately               = true
   skip_final_snapshot             = false
-  final_snapshot_identifier       = "${var.project_name}-final-snapshot-${formatdate("YYYY-MM-DD-HH-mm-ss", timestamp())}"
+  final_snapshot_identifier       = "${var.project_name}-docdb-final-snapshot"
 
   tags = merge(
     var.common_tags,
@@ -287,6 +296,10 @@ resource "aws_docdb_cluster" "docdb_cluster" {
       Name = "${var.project_name}-docdb-cluster"
     }
   )
+
+  lifecycle {
+    ignore_changes = [final_snapshot_identifier]
+  }
 }
 resource "aws_docdb_cluster_instance" "docdb_cluster_instance" {
   count              = 1
