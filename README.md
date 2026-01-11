@@ -49,17 +49,48 @@ If AWS CLI is already configured with a `~/.aws` directory, you can skip configu
 
 ## Configuring an AWS Container Registry (ECR)
 
+### Authenticating with ECR
+
 Authenticate Docker with AWS ECR:
 
 ```bash
 aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <aws-account-id>.dkr.ecr.<region>.amazonaws.com
 ```
 
+### Pushing Images to Private ECR
+
 Tag and push an image to ECR (ensure the repository exists in ECR beforehand):
 
 ```bash
 docker tag <local-image:version> <aws-account-id>.dkr.ecr.<region>.amazonaws.com/<ecr-repo-name>/local-image:version
 docker push <aws-account-id>.dkr.ecr.<region>.amazonaws.com/<ecr-repo-name>/local-image:version
+```
+
+### Migrating Public Images to Private ECR
+
+For private subnet tasks (when `use_nat_gateway = false`), you need to copy public container images to your private ECR:
+
+```bash
+# Get your ECR repository URL and extract region from it
+ECR_REPO=$(terraform output -json ecr_repository_urls | jq -r '.app')
+AWS_REGION=$(echo $ECR_REPO | cut -d'.' -f4)
+
+# Authenticate with ECR
+aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+
+# Pull the public image
+docker pull public.ecr.aws/nginx/nginx:1.27-bookworm
+
+# Tag it for your private ECR
+docker tag public.ecr.aws/nginx/nginx:1.27-bookworm ${ECR_REPO}:nginx-1.27-bookworm
+
+# Push to your private ECR
+docker push ${ECR_REPO}:nginx-1.27-bookworm
+```
+
+Then update your task definition JSON files to reference the private ECR image:
+```json
+"image": "<aws-account-id>.dkr.ecr.<region>.amazonaws.com/<repo-name>:nginx-1.27-bookworm"
 ```
 
 ## Managing Terraform State
