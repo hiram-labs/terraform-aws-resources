@@ -237,6 +237,8 @@ resource "aws_appautoscaling_target" "public_scaling_target" {
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.public_svc[each.key].name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
+
+  depends_on = [aws_ecs_service.public_svc]
 }
 resource "aws_appautoscaling_policy" "public_scaling_policy" {
   for_each           = var.public_task_definitions
@@ -379,6 +381,8 @@ resource "aws_appautoscaling_target" "private_scaling_target" {
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.private_svc[each.key].name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
+
+  depends_on = [aws_ecs_service.private_svc]
 }
 resource "aws_appautoscaling_policy" "private_scaling_policy" {
   for_each           = var.private_task_definitions

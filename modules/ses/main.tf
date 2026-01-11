@@ -236,7 +236,7 @@ resource "aws_ses_receipt_rule" "bounce" {
 resource "null_resource" "activate_rule_set" {
   provisioner "local-exec" {
     when = create
-    command = "aws ses set-active-receipt-rule-set --rule-set-name ${aws_ses_receipt_rule_set.default.rule_set_name}"
+    command = "sleep 5 && aws ses set-active-receipt-rule-set --rule-set-name ${aws_ses_receipt_rule_set.default.rule_set_name}"
   }
 
   depends_on = [
