@@ -92,6 +92,12 @@ module "s3" {
   common_tags  = local.common_tags
 }
 
+module "ecr" {
+  source       = "./modules/ecr"
+  project_name = var.project_name
+  repositories = var.ecr_repositories
+  common_tags  = local.common_tags
+}
 
 module "db" {
   source            = "./modules/db"

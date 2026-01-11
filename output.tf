@@ -173,6 +173,24 @@ output "s3_bucket_arn" {
 }
 
 #######################################################################
+# ECR Outputs                                                         #
+#######################################################################
+output "ecr_repository_urls" {
+  description = "Map of ECR repository names to their URLs"
+  value       = module.ecr.repository_urls
+}
+
+output "ecr_repository_arns" {
+  description = "Map of ECR repository names to their ARNs"
+  value       = module.ecr.repository_arns
+}
+
+output "ecr_registry_id" {
+  description = "Registry ID where ECR repositories are created"
+  value       = module.ecr.registry_id
+}
+
+#######################################################################
 # Quick Start Connection Information                                  #
 #######################################################################
 output "quick_start_info" {

@@ -56,9 +56,7 @@ variable "aws_region" {
   validation {
     condition = contains([
       "us-east-1", "us-east-2", "us-west-1", "us-west-2",
-      "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-north-1",
-      "ap-south-1", "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2",
-      "ca-central-1", "sa-east-1"
+      "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-north-1"
     ], var.aws_region)
     error_message = "AWS region must be a valid AWS region identifier."
   }
@@ -168,5 +166,18 @@ variable "log_retention_days" {
     dev     = 3
     staging = 7
     prod    = 30
+  }
+}
+variable "ecr_repositories" {
+  type = map(object({
+    keep_image_count = number
+    untagged_days    = number
+  }))
+  description = "Map of ECR repositories with lifecycle policy settings"
+  default = {
+    app = {
+      keep_image_count = 10
+      untagged_days    = 7
+    }
   }
 }

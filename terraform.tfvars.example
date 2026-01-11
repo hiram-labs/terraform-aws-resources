@@ -35,8 +35,14 @@ public_task_definitions = {
 }
 private_task_definitions = {
   private_service_01 = {
-    path = "modules/ecs/task-definitions/private/service_01.json"
-    cpu                  = 256
-    memory               = 512
+    path   = "modules/ecs/task-definitions/private/service_01.json"
+    cpu    = 256
+    memory = 512
+  }
+}
+ecr_repositories = {
+  app = {
+    keep_image_count = 10
+    untagged_days    = 7
   }
 }
