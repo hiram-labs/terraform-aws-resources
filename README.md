@@ -186,6 +186,11 @@ Before deploying to production, ensure you have:
 - [ ] **Cost Review**: Reviewed infrastructure costs (databases, NAT Gateway, etc.)
 - [ ] **Backup Plan**: Understood RDS/DocumentDB snapshot policies
 
+> **Important Note on NAT Gateway**: When `use_nat_gateway = false`, private subnet tasks can **only** pull container images from your private AWS ECR repository. VPC endpoints are configured for ECR API, ECR Docker, and S3, enabling private ECR access without internet connectivity. However, public registries (Docker Hub, AWS Public ECR, etc.) will be inaccessible. If you need to use public container images in private tasks, either:
+> - Enable NAT Gateway (`use_nat_gateway = true`), or
+> - Copy public images to your private ECR first, or
+> - Deploy tasks in public subnets instead
+
 ### Environment-Specific Configurations
 
 #### Development Environment
