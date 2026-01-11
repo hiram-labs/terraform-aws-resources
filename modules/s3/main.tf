@@ -151,6 +151,8 @@ resource "aws_s3_bucket_versioning" "website_bucket_versioning" {
 resource "aws_s3_bucket_lifecycle_configuration" "website_bucket_lifecycle" {
   bucket = aws_s3_bucket.website_bucket.id
 
+  depends_on = [aws_s3_bucket_versioning.website_bucket_versioning]
+
   rule {
     id     = "expire-old-versions"
     status = "Enabled"

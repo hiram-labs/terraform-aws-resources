@@ -210,6 +210,7 @@ resource "aws_ses_receipt_rule" "store" {
     scope    = "RuleSet"
   }
 }
+
 resource "aws_ses_receipt_rule" "bounce" {
   name          = "bounce"
   rule_set_name = aws_ses_receipt_rule_set.default.rule_set_name
@@ -238,7 +239,11 @@ resource "null_resource" "activate_rule_set" {
     command = "aws ses set-active-receipt-rule-set --rule-set-name ${aws_ses_receipt_rule_set.default.rule_set_name}"
   }
 
-  depends_on = [aws_ses_receipt_rule.store]
+  depends_on = [
+    aws_ses_receipt_rule_set.default,
+    aws_ses_receipt_rule.store,
+    aws_ses_receipt_rule.bounce
+  ]
 }
 
 #######################################################################

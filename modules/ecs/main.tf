@@ -238,9 +238,9 @@ resource "aws_appautoscaling_target" "public_scaling_target" {
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
-resource "aws_appautoscaling_policy" "public_scaling_up_policy" {
+resource "aws_appautoscaling_policy" "public_scaling_policy" {
   for_each           = var.public_task_definitions
-  name               = "${var.project_name}-cpu-scale-up"
+  name               = "${var.project_name}-${each.key}-cpu-scaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.public_scaling_target[each.key].resource_id
   scalable_dimension = aws_appautoscaling_target.public_scaling_target[each.key].scalable_dimension
@@ -248,25 +248,6 @@ resource "aws_appautoscaling_policy" "public_scaling_up_policy" {
 
   target_tracking_scaling_policy_configuration {
     target_value       = 75.0
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 120
-    scale_out_cooldown = 300
-  }
-
-  depends_on = [aws_appautoscaling_target.public_scaling_target]
-}
-resource "aws_appautoscaling_policy" "public_scaling_down_policy" {
-  for_each           = var.public_task_definitions
-  name               = "${var.project_name}-cpu-scale-down"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.public_scaling_target[each.key].resource_id
-  scalable_dimension = aws_appautoscaling_target.public_scaling_target[each.key].scalable_dimension
-  service_namespace  = aws_appautoscaling_target.public_scaling_target[each.key].service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    target_value       = 45.0
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
@@ -399,9 +380,9 @@ resource "aws_appautoscaling_target" "private_scaling_target" {
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
-resource "aws_appautoscaling_policy" "private_scaling_up_policy" {
+resource "aws_appautoscaling_policy" "private_scaling_policy" {
   for_each           = var.private_task_definitions
-  name               = "${var.project_name}-cpu-scale-up"
+  name               = "${var.project_name}-${each.key}-cpu-scaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.private_scaling_target[each.key].resource_id
   scalable_dimension = aws_appautoscaling_target.private_scaling_target[each.key].scalable_dimension
@@ -409,25 +390,6 @@ resource "aws_appautoscaling_policy" "private_scaling_up_policy" {
 
   target_tracking_scaling_policy_configuration {
     target_value       = 75.0
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 120
-    scale_out_cooldown = 300
-  }
-
-  depends_on = [aws_appautoscaling_target.private_scaling_target]
-}
-resource "aws_appautoscaling_policy" "private_scaling_down_policy" {
-  for_each           = var.private_task_definitions
-  name               = "${var.project_name}-cpu-scale-down"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.private_scaling_target[each.key].resource_id
-  scalable_dimension = aws_appautoscaling_target.private_scaling_target[each.key].scalable_dimension
-  service_namespace  = aws_appautoscaling_target.private_scaling_target[each.key].service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    target_value       = 45.0
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }

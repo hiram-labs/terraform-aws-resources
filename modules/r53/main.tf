@@ -19,25 +19,11 @@ resource "aws_route53_zone" "primary" {
 #######################################################################
 # Route 53 Name Server (NS) Record                                    #
 #                                                                     #
-# Defines the NS (Name Server) record, which tells the internet       #
-# where to find authoritative DNS servers for this domain. AWS        #
-# assigns these name servers automatically, and they must be used     #
-# at the domain registrar to delegate DNS resolution to Route 53.     #
+# NOTE: NS records are automatically created by AWS when a hosted     #
+# zone is created. No need to create them manually as it would        #
+# cause a conflict. The name servers can be retrieved from the        #
+# aws_route53_zone.primary.name_servers output.                       #
 #######################################################################
-resource "aws_route53_record" "primary" {
-  allow_overwrite = false
-  zone_id         = aws_route53_zone.primary.zone_id
-  name            = aws_route53_zone.primary.name
-  ttl             = 1800
-  type            = "NS"
-
-  records = [
-    aws_route53_zone.primary.name_servers[0],
-    aws_route53_zone.primary.name_servers[1],
-    aws_route53_zone.primary.name_servers[2],
-    aws_route53_zone.primary.name_servers[3],
-  ]
-}
 
 #######################################################################
 # AWS Certificate Manager (ACM) SSL                                   #
