@@ -243,6 +243,9 @@ terraform init \
 terraform validate
 terraform fmt -check
 terraform plan -out=tfplan
+
+# Inspect the plan (tfplan is binary, use terraform show to view)
+terraform show tfplan
 ```
 
 3. **Apply Infrastructure**
@@ -571,8 +574,8 @@ git checkout -b infrastructure-update
 # Run plan to preview changes
 terraform plan -out=tfplan
 
-# Review plan carefully
-less tfplan
+# Review plan carefully (tfplan is a binary file)
+terraform show tfplan
 
 # Apply if safe
 terraform apply tfplan
