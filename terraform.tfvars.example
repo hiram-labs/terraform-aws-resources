@@ -46,3 +46,6 @@ ecr_repositories = {
     untagged_days    = 7
   }
 }
+rds_snapshot_identifier = ""
+docdb_snapshot_identifier = ""
+elasticache_snapshot_name = ""

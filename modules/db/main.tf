@@ -77,6 +77,8 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
   apply_immediately          = true
   final_snapshot_identifier  = "${var.project_name}-final-snapshot"
   
+  snapshot_name              = var.elasticache_snapshot_name
+  
   user_group_ids             = [aws_elasticache_user_group.cache_default_user_group.id]
   parameter_group_name       = aws_elasticache_parameter_group.cache_params.name
   subnet_group_name          = aws_elasticache_subnet_group.cache_subnet_group.name
@@ -177,8 +179,9 @@ resource "aws_db_instance" "rds_postgres" {
   allocated_storage                     = 20
   max_allocated_storage                 = 1000
 
-  username                              = "svc"
-  password                              = random_password.shared_password.result
+  snapshot_identifier                   = var.rds_snapshot_identifier
+  username                              = var.rds_snapshot_identifier == null ? "svc" : null
+  password                              = var.rds_snapshot_identifier == null ? random_password.shared_password.result : null
 
   option_group_name                     = aws_db_option_group.rds_pg_options.name
   parameter_group_name                  = aws_db_parameter_group.rds_pg_params.name
@@ -272,8 +275,9 @@ resource "aws_docdb_cluster" "docdb_cluster" {
   engine_version                  = "4.0.0"
   port                            = 27017
 
-  master_username                 = "svc"
-  master_password                 = random_password.shared_password.result
+  snapshot_identifier             = var.docdb_snapshot_identifier
+  master_username                 = var.docdb_snapshot_identifier == null ? "svc" : null
+  master_password                 = var.docdb_snapshot_identifier == null ? random_password.shared_password.result : null
 
   db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.docdb_pg_params.name
   db_subnet_group_name            = aws_docdb_subnet_group.docdb_subnet_group.name

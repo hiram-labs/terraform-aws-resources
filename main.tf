@@ -100,13 +100,16 @@ module "ecr" {
 }
 
 module "db" {
-  source            = "./modules/db"
-  project_name      = var.project_name
-  private_subnets   = module.vpc.private_subnets
-  sns_topic_arn     = module.sns.sns_topic_arn
-  security_groups   = [module.sg.whitelist_sg_id, module.sg.whitelist_db_sg_id]
-  enable_monitoring = local.enable_monitoring
-  common_tags       = local.common_tags
+  source                      = "./modules/db"
+  project_name                = var.project_name
+  rds_snapshot_identifier     = var.rds_snapshot_identifier
+  docdb_snapshot_identifier   = var.docdb_snapshot_identifier
+  elasticache_snapshot_name   = var.elasticache_snapshot_name
+  private_subnets             = module.vpc.private_subnets
+  sns_topic_arn               = module.sns.sns_topic_arn
+  security_groups             = [module.sg.whitelist_sg_id, module.sg.whitelist_db_sg_id]
+  enable_monitoring           = local.enable_monitoring
+  common_tags                 = local.common_tags
 }
 
 module "sns" {

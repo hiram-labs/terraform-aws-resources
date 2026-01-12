@@ -181,3 +181,21 @@ variable "ecr_repositories" {
     }
   }
 }
+
+variable "rds_snapshot_identifier" {
+  type        = string
+  description = "Snapshot identifier to restore RDS PostgreSQL from. If provided, the database will be created from this snapshot."
+  default     = null
+}
+
+variable "docdb_snapshot_identifier" {
+  type        = string
+  description = "Snapshot identifier to restore DocumentDB from. If provided, the cluster will be created from this snapshot."
+  default     = null
+}
+
+variable "elasticache_snapshot_name" {
+  type        = string
+  description = "Snapshot name to restore ElastiCache from. If provided, the replication group will be created from this snapshot."
+  default     = null
+}
