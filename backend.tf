@@ -14,11 +14,11 @@
 # Use your actual project_name, environment, and aws_region values.    #
 ########################################################################
 
-# Uncomment to enable remote state backend
-# terraform {
-#   backend "s3" {
-#     # Values provided via -backend-config flags during init
-#     key     = "terraform.tfstate"
-#     encrypt = true
-#   }
-# }
+## Uncomment to enable remote state backend
+terraform {
+  backend "s3" {
+    # Values provided via -backend-config flags during init
+    key     = "terraform.tfstate"
+    encrypt = true
+  }
+}
