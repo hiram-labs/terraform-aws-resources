@@ -46,6 +46,9 @@ ecr_repositories = {
     untagged_days    = 7
   }
 }
+use_elasticache = false
+use_rds = false
+use_docdb = false
 rds_snapshot_identifier = ""
 docdb_snapshot_identifier = ""
 elasticache_snapshot_name = ""

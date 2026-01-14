@@ -30,6 +30,24 @@ variable "enable_monitoring" {
   default     = false
 }
 
+variable "use_elasticache" {
+  type        = bool
+  description = "Enable ElastiCache Valkey deployment"
+  default     = true
+}
+
+variable "use_rds" {
+  type        = bool
+  description = "Enable RDS PostgreSQL deployment"
+  default     = true
+}
+
+variable "use_docdb" {
+  type        = bool
+  description = "Enable DocumentDB deployment"
+  default     = true
+}
+
 variable "rds_snapshot_identifier" {
   type        = string
   description = "Snapshot identifier to restore RDS PostgreSQL from. If provided, the database will be created from this snapshot."
