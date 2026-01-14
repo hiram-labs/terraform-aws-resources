@@ -24,6 +24,7 @@ resource "random_password" "shared_password" {
 # - Ideal for workloads requiring predictable performance and full control over cache nodes.     #
 ##################################################################################################
 resource "aws_elasticache_subnet_group" "cache_subnet_group" {
+  count      = var.use_elasticache ? 1 : 0
   name       = "${var.project_name}-cache-subnet-group"
   subnet_ids = var.private_subnets
 
@@ -35,6 +36,7 @@ resource "aws_elasticache_subnet_group" "cache_subnet_group" {
   )
 }
 resource "aws_elasticache_parameter_group" "cache_params" {
+  count  = var.use_elasticache ? 1 : 0
   name   = "${var.project_name}-cache-params"
   family = "valkey7"
 
@@ -46,6 +48,7 @@ resource "aws_elasticache_parameter_group" "cache_params" {
   )
 }
 resource "aws_elasticache_user" "cache_default_user" {
+  count         = var.use_elasticache ? 1 : 0
   engine        = "valkey"
   user_id       = "${var.project_name}-default-user-id"
   user_name     = "svc"
@@ -55,13 +58,19 @@ resource "aws_elasticache_user" "cache_default_user" {
     type = "password"
     passwords = [random_password.shared_password.result]
   }
+
+  lifecycle {
+    ignore_changes = [authentication_mode]
+  }
 }
 resource "aws_elasticache_user_group" "cache_default_user_group" {
+  count         = var.use_elasticache ? 1 : 0
   engine        = "valkey"
   user_group_id = "${var.project_name}-default-user-group-id"
-  user_ids      = [aws_elasticache_user.cache_default_user.user_id]
+  user_ids      = [aws_elasticache_user.cache_default_user[0].user_id]
 }
 resource "aws_elasticache_replication_group" "cache_replication_group" {
+  count                      = var.use_elasticache ? 1 : 0
   replication_group_id       = "${var.project_name}-cache-replication-group"
   description                = "Replication group for ${var.project_name}"
   engine                     = "valkey"
@@ -79,9 +88,9 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
   
   snapshot_name              = var.elasticache_snapshot_name
   
-  user_group_ids             = [aws_elasticache_user_group.cache_default_user_group.id]
-  parameter_group_name       = aws_elasticache_parameter_group.cache_params.name
-  subnet_group_name          = aws_elasticache_subnet_group.cache_subnet_group.name
+  user_group_ids             = [aws_elasticache_user_group.cache_default_user_group[0].id]
+  parameter_group_name       = aws_elasticache_parameter_group.cache_params[0].name
+  subnet_group_name          = aws_elasticache_subnet_group.cache_subnet_group[0].name
   security_group_ids         = var.security_groups
 
   snapshot_retention_limit   = 1
@@ -96,7 +105,7 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
   )
 
   lifecycle {
-    ignore_changes = [final_snapshot_identifier]
+    ignore_changes = [final_snapshot_identifier, snapshot_name]
   }
 }
 
@@ -121,6 +130,7 @@ resource "aws_elasticache_replication_group" "cache_replication_group" {
 # - Private networking with security group restrictions.                                         #
 ##################################################################################################
 resource "aws_db_subnet_group" "rds_subnet_group" {
+  count      = var.use_rds ? 1 : 0
   name       = "${var.project_name}-rds-subnet-group"
   subnet_ids = var.private_subnets
 
@@ -132,6 +142,7 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
   )
 }
 resource "aws_db_parameter_group" "rds_pg_params" {
+  count       = var.use_rds ? 1 : 0
   name        = "${var.project_name}-rds-pg-params"
   family      = "postgres16"
 
@@ -154,6 +165,7 @@ resource "aws_db_parameter_group" "rds_pg_params" {
   )
 }
 resource "aws_db_option_group" "rds_pg_options" {
+  count                = var.use_rds ? 1 : 0
   name                 = "${var.project_name}-rds-pg-options"
   engine_name          = "postgres"
   major_engine_version = "16"
@@ -171,6 +183,7 @@ resource "aws_db_option_group" "rds_pg_options" {
   )
 }
 resource "aws_db_instance" "rds_postgres" {
+  count                                 = var.use_rds ? 1 : 0
   identifier                            = "${var.project_name}-rds-postgres"
   engine                                = "postgres"
   engine_version                        = "16"
@@ -183,9 +196,9 @@ resource "aws_db_instance" "rds_postgres" {
   username                              = var.rds_snapshot_identifier == null ? "svc" : null
   password                              = var.rds_snapshot_identifier == null ? random_password.shared_password.result : null
 
-  option_group_name                     = aws_db_option_group.rds_pg_options.name
-  parameter_group_name                  = aws_db_parameter_group.rds_pg_params.name
-  db_subnet_group_name                  = aws_db_subnet_group.rds_subnet_group.name
+  option_group_name                     = aws_db_option_group.rds_pg_options[0].name
+  parameter_group_name                  = aws_db_parameter_group.rds_pg_params[0].name
+  db_subnet_group_name                  = aws_db_subnet_group.rds_subnet_group[0].name
   vpc_security_group_ids                = var.security_groups
 
   multi_az                              = true
@@ -212,7 +225,7 @@ resource "aws_db_instance" "rds_postgres" {
   )
 
   lifecycle {
-    ignore_changes = [final_snapshot_identifier]
+    ignore_changes = [final_snapshot_identifier, snapshot_identifier, deletion_protection, password]
   }
 }
 
@@ -239,6 +252,7 @@ resource "aws_db_instance" "rds_postgres" {
 # - Performance insights and monitoring integration for proactive management.                       #
 #####################################################################################################
 resource "aws_docdb_subnet_group" "docdb_subnet_group" {
+  count      = var.use_docdb ? 1 : 0
   name       = "${var.project_name}-docdb-subnet-group"
   subnet_ids = var.private_subnets
 
@@ -250,6 +264,7 @@ resource "aws_docdb_subnet_group" "docdb_subnet_group" {
   )
 }
 resource "aws_docdb_cluster_parameter_group" "docdb_pg_params" {
+  count       = var.use_docdb ? 1 : 0
   name        = "${var.project_name}-docdb-pg-params"
   family      = "docdb4.0"
 
@@ -270,6 +285,7 @@ resource "aws_docdb_cluster_parameter_group" "docdb_pg_params" {
   )
 }
 resource "aws_docdb_cluster" "docdb_cluster" {
+  count                           = var.use_docdb ? 1 : 0
   cluster_identifier              = "${var.project_name}-docdb-cluster"
   engine                          = "docdb"
   engine_version                  = "4.0.0"
@@ -279,8 +295,8 @@ resource "aws_docdb_cluster" "docdb_cluster" {
   master_username                 = var.docdb_snapshot_identifier == null ? "svc" : null
   master_password                 = var.docdb_snapshot_identifier == null ? random_password.shared_password.result : null
 
-  db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.docdb_pg_params.name
-  db_subnet_group_name            = aws_docdb_subnet_group.docdb_subnet_group.name
+  db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.docdb_pg_params[0].name
+  db_subnet_group_name            = aws_docdb_subnet_group.docdb_subnet_group[0].name
   vpc_security_group_ids          = var.security_groups
 
   storage_encrypted               = true
@@ -302,13 +318,13 @@ resource "aws_docdb_cluster" "docdb_cluster" {
   )
 
   lifecycle {
-    ignore_changes = [final_snapshot_identifier]
+    ignore_changes = [final_snapshot_identifier, snapshot_identifier, deletion_protection, master_password]
   }
 }
 resource "aws_docdb_cluster_instance" "docdb_cluster_instance" {
-  count              = 1
+  count              = var.use_docdb ? 1 : 0
   identifier         = "${var.project_name}-docdb-cluster-instance-${count.index}"
-  cluster_identifier = aws_docdb_cluster.docdb_cluster.id
+  cluster_identifier = aws_docdb_cluster.docdb_cluster[0].id
   instance_class     = "db.t3.medium"
 
   tags = merge(
@@ -323,7 +339,7 @@ resource "aws_docdb_cluster_instance" "docdb_cluster_instance" {
 # CloudWatch Alarms for RDS PostgreSQL                                #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_rds ? 1 : 0
   alarm_name          = "${var.project_name}-rds-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -336,7 +352,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+    DBInstanceIdentifier = aws_db_instance.rds_postgres[0].id
   }
 
   tags = merge(
@@ -348,7 +364,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_rds ? 1 : 0
   alarm_name          = "${var.project_name}-rds-storage-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 1
@@ -361,7 +377,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+    DBInstanceIdentifier = aws_db_instance.rds_postgres[0].id
   }
 
   tags = merge(
@@ -373,7 +389,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_rds ? 1 : 0
   alarm_name          = "${var.project_name}-rds-connections-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -386,7 +402,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+    DBInstanceIdentifier = aws_db_instance.rds_postgres[0].id
   }
 
   tags = merge(
@@ -398,7 +414,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_read_latency_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_rds ? 1 : 0
   alarm_name          = "${var.project_name}-rds-read-latency-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -411,7 +427,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_read_latency_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+    DBInstanceIdentifier = aws_db_instance.rds_postgres[0].id
   }
 
   tags = merge(
@@ -423,7 +439,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_read_latency_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_write_latency_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_rds ? 1 : 0
   alarm_name          = "${var.project_name}-rds-write-latency-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -436,7 +452,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_write_latency_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.rds_postgres.id
+    DBInstanceIdentifier = aws_db_instance.rds_postgres[0].id
   }
 
   tags = merge(
@@ -451,7 +467,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_write_latency_high" {
 # CloudWatch Alarms for ElastiCache                                   #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_elasticache ? 1 : 0
   alarm_name          = "${var.project_name}-elasticache-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -464,7 +480,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group.id
+    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group[0].id
   }
 
   tags = merge(
@@ -476,7 +492,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_elasticache ? 1 : 0
   alarm_name          = "${var.project_name}-elasticache-memory-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -489,7 +505,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group.id
+    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group[0].id
   }
 
   tags = merge(
@@ -501,7 +517,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "elasticache_evictions_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_elasticache ? 1 : 0
   alarm_name          = "${var.project_name}-elasticache-evictions-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -514,7 +530,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_evictions_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group.id
+    ReplicationGroupId = aws_elasticache_replication_group.cache_replication_group[0].id
   }
 
   tags = merge(
@@ -529,7 +545,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_evictions_high" {
 # CloudWatch Alarms for DocumentDB                                    #
 #######################################################################
 resource "aws_cloudwatch_metric_alarm" "docdb_cpu_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_docdb ? 1 : 0
   alarm_name          = "${var.project_name}-docdb-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -542,7 +558,7 @@ resource "aws_cloudwatch_metric_alarm" "docdb_cpu_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster.id
+    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster[0].id
   }
 
   tags = merge(
@@ -554,7 +570,7 @@ resource "aws_cloudwatch_metric_alarm" "docdb_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "docdb_connections_high" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_docdb ? 1 : 0
   alarm_name          = "${var.project_name}-docdb-connections-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -567,7 +583,7 @@ resource "aws_cloudwatch_metric_alarm" "docdb_connections_high" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster.id
+    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster[0].id
   }
 
   tags = merge(
@@ -579,7 +595,7 @@ resource "aws_cloudwatch_metric_alarm" "docdb_connections_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "docdb_replication_lag" {
-  count               = var.enable_monitoring ? 1 : 0
+  count               = var.enable_monitoring && var.use_docdb ? 1 : 0
   alarm_name          = "${var.project_name}-docdb-replication-lag"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -592,7 +608,7 @@ resource "aws_cloudwatch_metric_alarm" "docdb_replication_lag" {
   alarm_actions       = [var.sns_topic_arn]
 
   dimensions = {
-    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster.id
+    DBClusterIdentifier = aws_docdb_cluster.docdb_cluster[0].id
   }
 
   tags = merge(
