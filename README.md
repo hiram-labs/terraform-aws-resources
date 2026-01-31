@@ -534,7 +534,7 @@ aws ce get-cost-and-usage \
   --time-period Start=2024-01-01,End=2024-01-31 \
   --granularity MONTHLY \
   --metrics BlendedCost \
-  --group-by Type=SERVICE
+  --group-by Type=DIMENSION,Key=SERVICE
 
 # Common culprits:
 # - NAT Gateway data transfer
